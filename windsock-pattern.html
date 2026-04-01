@@ -61,7 +61,7 @@
 
     <div class="panel">
         <h2>Part 3: Final 3D Assembled Windsock</h2>
-        <p>Interactive 3D view showing the assembled grid with seam lines. Click and drag to rotate, scroll to zoom.</p>
+        <p>Interactive 3D view showing the assembled grid. Real physical seam lines are drawn to scale. Click and drag to rotate, scroll to zoom.</p>
         <div class="uploader-wrapper">
             <label for="bgUploader"><strong>Upload 3D Background Image:</strong> </label>
             <input type="file" id="bgUploader" accept="image/*">
@@ -81,7 +81,6 @@
     // 3D Setup
     const container3d = document.getElementById('canvas3d');
     const scene = new THREE.Scene();
-    // Default light gray background
     scene.background = new THREE.Color(0xf4f4f9); 
     const camera = new THREE.PerspectiveCamera(45, container3d.clientWidth / container3d.clientHeight, 0.1, 1000);
     const renderer = new THREE.WebGLRenderer({ antialias: true });
@@ -158,7 +157,6 @@
         const bandSlantWidth = slant / hBands;
         const pieces = [];
 
-        // Calculate geometry for the unique horizontal rows
         for(let i = 0; i < hBands; i++) {
             const rOuter = patternRTop - (i * bandSlantWidth);
             const rInner = patternRTop - ((i+1) * bandSlantWidth);
@@ -219,14 +217,12 @@
             ctx1.arc(0, apexY, piece.cutRInner * scale, endAng, startAng, true);
             ctx1.closePath();
             
-            // For the diagram, just show the color of the first column
             ctx1.fillStyle = getPieceColor(piece.rowIndex, 0, math.dir);
             ctx1.fill();
             ctx1.strokeStyle = "#000";
             ctx1.lineWidth = 1;
             ctx1.stroke();
 
-            // Inner dotted seam allowance
             ctx1.beginPath();
             ctx1.arc(0, apexY, piece.rOuter * scale, startAng, endAng);
             ctx1.arc(0, apexY, piece.rInner * scale, endAng, startAng, true);
@@ -235,7 +231,6 @@
             ctx1.stroke();
             ctx1.restore();
 
-            // Labels
             ctx1.fillStyle = "#000";
             ctx1.font = "14px sans-serif";
             ctx1.textAlign = "left";
@@ -292,7 +287,6 @@
         
         let currentStartAngle = (Math.PI * 1.5) - (math.totalAngleRad / 2);
 
-        // Loop through Grid: Columns (Panels) -> Rows (Bands)
         for(let p = 0; p < math.vPanels; p++) {
             const startAng = currentStartAngle;
             const endAng = currentStartAngle + math.panelAngleRad;
@@ -303,17 +297,14 @@
                 ctx2.arc(0, 0, math.pieces[i].cutRInner * scale, endAng, startAng, true);
                 ctx2.closePath();
                 
-                // Color mapping logic
                 ctx2.fillStyle = getPieceColor(i, p, math.dir);
                 ctx2.fill();
                 
-                // Solid Black Seam Lines for every grid piece
                 ctx2.strokeStyle = "#000000";
                 ctx2.lineWidth = 1.5;
                 ctx2.stroke();
             }
 
-            // Draw dotted outer bounding box for the whole column
             ctx2.beginPath();
             ctx2.arc(0, 0, math.patternRTop * scale, startAng, endAng);
             ctx2.arc(0, 0, math.patternRBot * scale, endAng, startAng, true);
@@ -323,7 +314,7 @@
             ctx2.lineWidth = 1;
             ctx2.setLineDash([4, 4]);
             ctx2.stroke();
-            ctx2.setLineDash([]); // Reset
+            ctx2.setLineDash([]); 
 
             currentStartAngle += math.panelAngleRad;
         }
@@ -331,7 +322,7 @@
         ctx2.restore();
     }
 
-    // --- Part 3: Final 3D Assembly with Grid Seams ---
+    // --- Part 3: Final 3D Assembly with Physical Seam Tubes ---
     function drawPart3() {
         while(funnelGroup.children.length > 0) { funnelGroup.remove(funnelGroup.children[0]); }
 
@@ -339,7 +330,7 @@
         const thetaLength = (2 * Math.PI) / math.vPanels;
         let currentY = math.h / 2; 
         
-        // Build the 3D grid: Rows -> Columns
+        // 1. Build the Solid Fabric Panels
         for(let i=0; i < math.hBands; i++) {
             const rStep = (math.rTop - math.rBot) / math.hBands;
             const segRTop = math.rTop - (i * rStep);
@@ -347,25 +338,54 @@
             
             for(let p = 0; p < math.vPanels; p++) {
                 const thetaStart = p * thetaLength;
-                
-                // Create geometry for this specific grid piece
-                const geo = new THREE.CylinderGeometry(segRTop, segRBot, segmentHeight, 16, 1, true, thetaStart, thetaLength);
-                
-                // Apply color logic
+                const geo = new THREE.CylinderGeometry(segRTop, segRBot, segmentHeight, 32, 1, true, thetaStart, thetaLength);
                 const colorHex = new THREE.Color(getPieceColor(i, p, math.dir)).getHex();
                 const mat = new THREE.MeshLambertMaterial({ color: colorHex, side: THREE.DoubleSide });
                 
                 const mesh = new THREE.Mesh(geo, mat);
                 mesh.position.y = currentY - (segmentHeight / 2);
                 funnelGroup.add(mesh);
-
-                // Add Black Seam Lines mapping the edges of the geometry
-                const edges = new THREE.EdgesGeometry(geo);
-                const lineMat = new THREE.LineBasicMaterial({ color: 0x000000, linewidth: 2 });
-                const lineSegments = new THREE.LineSegments(edges, lineMat);
-                mesh.add(lineSegments);
             }
             currentY -= segmentHeight; 
+        }
+
+        // 2. Build Physical 3D Seam Lines (Tubes & Cylinders)
+        // Set physical thickness relative to overall model scale
+        const seamThickness = Math.max(math.slant * 0.0015, 0.05); 
+        const seamMat = new THREE.MeshBasicMaterial({ color: 0x000000 });
+
+        // A. Horizontal Seams (Rings)
+        for(let i=0; i <= math.hBands; i++) {
+            const r = math.rTop - (i * (math.rTop - math.rBot) / math.hBands);
+            const y = (math.h / 2) - (i * segmentHeight);
+            
+            const torusGeo = new THREE.TorusGeometry(r, seamThickness, 8, 64);
+            const torus = new THREE.Mesh(torusGeo, seamMat);
+            torus.rotation.x = Math.PI / 2;
+            torus.position.y = y;
+            funnelGroup.add(torus);
+        }
+
+        // B. Vertical Seams (Lines along the slant)
+        for(let p=0; p < math.vPanels; p++) {
+            const theta = p * thetaLength;
+            
+            // Calculate Top and Bottom coordinates for the seam line
+            const ptTop = new THREE.Vector3(math.rTop * Math.cos(theta), math.h/2, math.rTop * Math.sin(theta));
+            const ptBot = new THREE.Vector3(math.rBot * Math.cos(theta), -math.h/2, math.rBot * Math.sin(theta));
+            
+            const midPoint = new THREE.Vector3().addVectors(ptTop, ptBot).multiplyScalar(0.5);
+            
+            // Create a physical cylinder the exact length of the slant
+            const cylGeo = new THREE.CylinderGeometry(seamThickness, seamThickness, math.slant, 8);
+            const cyl = new THREE.Mesh(cylGeo, seamMat);
+            
+            // Position at midpoint and orient along the slant direction
+            cyl.position.copy(midPoint);
+            const direction = new THREE.Vector3().subVectors(ptTop, ptBot).normalize();
+            cyl.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), direction);
+            
+            funnelGroup.add(cyl);
         }
 
         camera.position.set(0, math.h * 0.2, math.h * 1.6);
@@ -381,7 +401,6 @@
     }
 
     document.querySelectorAll('input, select').forEach(input => {
-        // Exclude the file uploader from triggering calculations
         if(input.id !== 'bgUploader') {
             input.addEventListener('input', updateCalculations);
         }
