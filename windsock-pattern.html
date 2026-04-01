@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Windsock Fabrication Guide</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <style>
+        body { font-family: sans-serif; margin: 0; padding: 20px; background: #f4f4f9; color: #333; }
+        .container { max-width: 1200px; margin: 0 auto; display: flex; flex-direction: column; gap: 20px; }
+        .panel { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        h1, h2 { margin-top: 0; color: #222; margin-bottom: 10px;}
+        p { margin-top: 0; color: #555; line-height: 1.4;}
+        .controls { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 15px; }
+        .control-group label { display: block; font-weight: bold; margin-bottom: 5px; font-size: 14px; }
+        .control-group input, .control-group select { width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
+        .results-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; font-family: monospace; font-size: 14px; background: #eee; padding: 15px; border-radius: 4px; margin-top: 15px;}
+        canvas { border: 1px solid #ddd; background: #fff; width: 100%; border-radius: 4px; }
+        #canvas3d { height: 400px; cursor: grab; background: #fff; border: 1px solid #ddd; border-radius: 4px;}
+        #canvas3d:active { cursor: grabbing; }
+        .warning { background: #fee; color: #c00; padding: 10px; border: 1px solid #fcc; border-radius: 4px; font-weight: bold; margin-bottom: 15px; display: none; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="panel">
+        <h1>Windsock Dimensions & Inputs</h1>
+        <div class="controls">
+            <div class="control-group"><label>Top Diameter (in) [Widest]</label><input type="number" id="inTop" value="36" step="1"></div>
+            <div class="control-group"><label>Bottom Diameter (in) [Narrowest]</label><input type="number" id="inBot" value="12" step="1"></div>
+            <div class="control-group"><label>Height (in)</label><input type="number" id="inH" value="72" step="1"></div>
+            <div class="control-group"><label>Seam Allowance (in)</label><input type="number" id="inSeam" value="0.5" step="0.1"></div>
+            <div class="control-group"><label>Raw Material Width (in)</label><input type="number" id="inMatW" value="72" step="1"></div>
+            <div class="control-group">
+                <label>Pattern Direction</label>
+                <select id="inDir">
+                    <option value="horizontal">Horizontal Bands</option>
+                    <option value="vertical">Vertical Stripes</option>
+                </select>
+            </div>
+            <div class="control-group"><label>Number of Panels</label><input type="number" id="inPanels" value="2" min="1" max="12" step="1"></div>
+            <div class="control-group"><label>Number of Stripes/Bands</label><input type="number" id="inBands" value="5" min="1" max="24" step="1"></div>
+        </div>
+        <div class="results-grid" id="results"></div>
+    </div>
+
+    <div class="panel">
+        <h2>Part 1: Cut single color pieces</h2>
+        <p id="part1desc">Dimensions for cutting the individual pieces. Measurements below include the seam allowances on all edges. <i>Note: You must orient these so they fit within your raw material width.</i></p>
+        <div id="matWarning" class="warning">Warning: One or more individual pieces exceed your raw material width!</div>
+        <canvas id="canvasPart1" height="850"></canvas>
+    </div>
+
+    <div class="panel">
+        <h2>Part 2: Pieces assembled flat</h2>
+        <p id="part2desc">This shows all the individual pieces joined side-by-side at their seams to form the complete flat pattern. Oriented with the wide top opening at the top of the diagram. This full shape is then rolled and joined at the final side seam to create the windsock.</p>
+        <canvas id="canvasPart2" height="450"></canvas>
+    </div>
+
+    <div class="panel">
+        <h2>Part 3: Final 3D Assembled Windsock</h2>
+        <p>Interactive 3D view. Click and drag to rotate, scroll to zoom.</p>
+        <div id="canvas3d"></div>
+    </div>
+</div>
+
+<script>
+    // --- State and Setup ---
+    let math = {};
+    const c1 = document.getElementById('canvasPart1');
+    const ctx1 = c1.getContext('2d');
+    const c2 = document.getElementById('canvasPart2');
+    const ctx2 = c2.getContext('2d');
+    
+    // 3D Setup
+    const container3d = document.getElementById('canvas3d');
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(45, container3d.clientWidth / container3d.clientHeight, 0.1, 1000);
+    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+    renderer.setSize(container3d.clientWidth, container3d.clientHeight);
+    container3d.appendChild(renderer.domElement);
+    const controls = new THREE.OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+    scene.add(ambientLight);
+    const dirLight = new THREE.DirectionalLight(0xffffff, 0.6);
+    dirLight.position.set(100, 200, 50);
+    scene.add(dirLight);
+
+    let funnelGroup = new THREE.Group();
+    scene.add(funnelGroup);
+
+    // --- Calculation Logic ---
+    function updateCalculations() {
+        const dTop = parseFloat(document.getElementById('inTop').value);
+        const dBot = parseFloat(document.getElementById('inBot').value);
+        const h = parseFloat(document.getElementById('inH').value);
+        const seam = parseFloat(document.getElementById('inSeam').value);
+        const matW = parseFloat(document.getElementById('inMatW').value);
+        const panels = parseInt(document.getElementById('inPanels').value) || 2;
+        const numBands = parseInt(document.getElementById('inBands').value) || 5;
+        const dir = document.getElementById('inDir').value;
+
+        const rTop = dTop / 2;
+        const rBot = dBot / 2;
+        
+        // Slant height & Apex math
+        const slant = Math.sqrt(Math.pow(h, 2) + Math.pow(rTop - rBot, 2));
+        const apexDist = (rTop * slant) / (rTop - rBot);
+        const patternRTop = apexDist;
+        const patternRBot = patternRTop - slant;
+        
+        const totalAngleRad = (rTop / patternRTop) * 2 * Math.PI;
+        const totalAngleDeg = totalAngleRad * (180 / Math.PI);
+        const panelAngleRad = totalAngleRad / panels;
+        
+        const colors = ['#e63946', '#f1faee']; 
+        const colorNames = ['Red', 'White'];
+        let bands = [];
+        let stripExceedsMaterial = false;
+
+        if (dir === 'horizontal') {
+            document.getElementById('part1desc').innerHTML = `Dimensions for cutting the individual curved pieces for <b>ONE</b> panel. (You will need to cut ${panels} of each). Measurements include seam allowances on all four edges.`;
+            document.getElementById('part2desc').innerHTML = `This shows all ${panels} panels (each made of ${numBands} horizontal bands) joined together.`;
+            
+            const bandSlantWidth = slant / numBands;
+            for(let i = 0; i < numBands; i++) {
+                const rOuter = patternRTop - (i * bandSlantWidth);
+                const rInner = patternRTop - ((i+1) * bandSlantWidth);
+                const cutROuter = rOuter + seam;
+                const cutRInner = rInner - seam;
+                
+                const topCirc = (cutROuter * panelAngleRad) + (seam * 2); 
+                const botCirc = (cutRInner * panelAngleRad) + (seam * 2);
+                
+                const chord = 2 * cutROuter * Math.sin(panelAngleRad / 2);
+                const height = cutROuter - cutRInner * Math.cos(panelAngleRad / 2);
+                
+                if (chord > matW && height > matW) stripExceedsMaterial = true;
+
+                bands.push({
+                    color: colors[i % colors.length],
+                    colorName: colorNames[i % colorNames.length],
+                    rOuter: rOuter, rInner: rInner,
+                    cutROuter: cutROuter, cutRInner: cutRInner,
+                    cutWidth: bandSlantWidth + (seam * 2),
+                    topCirc: topCirc, botCirc: botCirc,
+                    boxWidth: chord, boxHeight: height
+                });
+            }
+        } else {
+            document.getElementById('part1desc').innerHTML = `Since you selected Vertical Stripes, all pieces share the exact same geometry. You will need to cut <b>${numBands} total pieces</b>, alternating colors. Measurements include seam allowances on all four edges.`;
+            document.getElementById('part2desc').innerHTML = `This shows all ${numBands} vertical stripes joined side-by-side to form the complete flat pattern.`;
+            
+            const wedgeAngle = totalAngleRad / numBands;
+            const cutROuter = patternRTop + seam;
+            const cutRInner = patternRBot - seam;
+            
+            const topCirc = (cutROuter * wedgeAngle) + (seam * 2);
+            const botCirc = (cutRInner * wedgeAngle) + (seam * 2);
+            const cutHeight = slant + (seam * 2);
+
+            const chord = 2 * cutROuter * Math.sin(wedgeAngle / 2) + (seam * 2);
+            const boxHeight = cutROuter - (cutRInner * Math.cos(wedgeAngle/2)) + (seam * 2);
+
+            if (chord > matW && boxHeight > matW) stripExceedsMaterial = true;
+
+            // Only need one entry for Part 1 since they are identical
+            bands.push({
+                color: colors[0], colorName: "Alternating",
+                rOuter: patternRTop, rInner: patternRBot,
+                cutROuter: cutROuter, cutRInner: cutRInner,
+                wedgeAngle: wedgeAngle,
+                cutWidth: cutHeight,
+                topCirc: topCirc, botCirc: botCirc,
+                boxWidth: chord, boxHeight: boxHeight
+            });
+        }
+
+        document.getElementById('matWarning').style.display = stripExceedsMaterial ? 'block' : 'none';
+        math = { dTop, dBot, h, seam, matW, panels, numBands, dir, rTop, rBot, slant, patternRTop, patternRBot, totalAngleRad, panelAngleRad, bands, colors };
+
+        document.getElementById('results').innerHTML = `
+            <div>Total Slant Height: ${slant.toFixed(2)}"</div>
+            <div>Full Pattern Angle: ${totalAngleDeg.toFixed(1)}&deg;</div>
+            <div>Mode: ${dir === 'horizontal' ? 'Horizontal Bands' : 'Vertical Stripes'}</div>
+            <div>Total Pieces Needed: ${dir === 'horizontal' ? (numBands * panels) : numBands}</div>
+        `;
+
+        drawPart1();
+        drawPart2();
+        drawPart3();
+    }
+
+    // --- Part 1: True Arcs (Handles Horizontal OR Vertical) ---
+    function drawPart1() {
+        c1.width = c1.parentElement.clientWidth;
+        ctx1.clearRect(0, 0, c1.width, c1.height);
+        
+        const scaleBasis = math.dir === 'horizontal' ? math.panelAngleRad : math.bands[0].wedgeAngle;
+        const maxChord = 2 * math.bands[0].cutROuter * Math.sin(scaleBasis / 2);
+        const scale = Math.min((c1.width * 0.5) / maxChord, 0.4); 
+        
+        ctx1.save();
+        ctx1.translate(c1.width / 3, 0); 
+        let currentY = 20;
+
+        math.bands.forEach((band, i) => {
+            const apexY = currentY + band.cutROuter * scale;
+            const angleBasis = math.dir === 'horizontal' ? math.panelAngleRad : band.wedgeAngle;
+            const startAng = Math.PI * 1.5 - angleBasis / 2;
+            const endAng = Math.PI * 1.5 + angleBasis / 2;
+            
+            ctx1.save();
+            ctx1.beginPath();
+            ctx1.arc(0, apexY, band.cutROuter * scale, startAng, endAng);
+            ctx1.arc(0, apexY, band.cutRInner * scale, endAng, startAng, true);
+            ctx1.closePath();
+            
+            ctx1.fillStyle = band.color;
+            ctx1.fill();
+            ctx1.strokeStyle = "#333";
+            ctx1.lineWidth = 1;
+            ctx1.stroke();
+
+            // Inner dotted seam allowance
+            ctx1.beginPath();
+            ctx1.arc(0, apexY, band.rOuter * scale, startAng, endAng);
+            ctx1.arc(0, apexY, band.rInner * scale, endAng, startAng, true);
+            ctx1.closePath();
+            ctx1.setLineDash([4, 4]);
+            ctx1.stroke();
+            ctx1.restore();
+
+            // Labels
+            ctx1.fillStyle = "#000";
+            ctx1.font = "14px sans-serif";
+            ctx1.textAlign = "left";
+            ctx1.textBaseline = "top";
+            
+            const textStartX = (maxChord / 2) * scale + 40; 
+            const textStartY = currentY;
+
+            ctx1.font = "bold 14px sans-serif";
+            if (math.dir === 'horizontal') {
+                ctx1.fillText(`Piece ${i+1} (${band.colorName})`, textStartX, textStartY);
+            } else {
+                ctx1.fillText(`Master Vertical Wedge`, textStartX, textStartY);
+                ctx1.font = "italic 13px sans-serif";
+                ctx1.fillText(`Cut ${Math.ceil(math.numBands/2)} Red, ${Math.floor(math.numBands/2)} White`, textStartX, textStartY + 18);
+            }
+            
+            let labelOffset = math.dir === 'vertical' ? 40 : 20;
+            ctx1.font = "14px sans-serif";
+            ctx1.fillText(`Top Cut Arc: ${band.topCirc.toFixed(2)}"`, textStartX, textStartY + labelOffset);
+            ctx1.fillText(`Bot Cut Arc: ${band.botCirc.toFixed(2)}"`, textStartX, textStartY + labelOffset + 20);
+            ctx1.fillText(`Top Radius: ${band.cutROuter.toFixed(2)}"`, textStartX, textStartY + labelOffset + 40);
+            ctx1.fillText(`Bot Radius: ${band.cutRInner.toFixed(2)}"`, textStartX, textStartY + labelOffset + 60);
+            ctx1.fillText(`Side Cut Length: ${band.cutWidth.toFixed(2)}"`, textStartX, textStartY + labelOffset + 80);
+            
+            ctx1.fillStyle = "#555"; 
+            ctx1.fillText(`Bounding Box W: ${band.boxWidth.toFixed(2)}"`, textStartX, textStartY + labelOffset + 105);
+            ctx1.fillText(`Bounding Box H: ${band.boxHeight.toFixed(2)}"`, textStartX, textStartY + labelOffset + 125);
+            
+            const arcHeight = band.boxHeight * scale;
+            currentY += Math.max(arcHeight, 200) + 40; 
+        });
+        
+        if (currentY > c1.height) { c1.height = currentY + 20; updateCalculations(); }
+        ctx1.restore();
+    }
+
+    // --- Part 2: Pieces assembled flat ---
+    function drawPart2() {
+        c2.width = c2.parentElement.clientWidth;
+        ctx2.clearRect(0, 0, c2.width, c2.height);
+        
+        const R_out = math.patternRTop + math.seam;
+        const R_in = math.patternRBot - math.seam;
+        
+        const minY = -R_out; 
+        const maxY = -R_in * Math.cos(math.totalAngleRad / 2); 
+        const fanHeight = maxY - minY;
+        const fanWidth = 2 * R_out * Math.sin(math.totalAngleRad / 2);
+        const scale = Math.min((c2.width - 40) / fanWidth, (c2.height - 40) / fanHeight);
+        
+        ctx2.save();
+        ctx2.translate(c2.width / 2, 20 + (-minY * scale)); 
+        
+        let currentStartAngle = (Math.PI * 1.5) - (math.totalAngleRad / 2);
+
+        if (math.dir === 'horizontal') {
+            for(let p = 0; p < math.panels; p++) {
+                const startAng = currentStartAngle;
+                const endAng = currentStartAngle + math.panelAngleRad;
+
+                for(let i=0; i < math.numBands; i++) {
+                    ctx2.beginPath();
+                    ctx2.arc(0, 0, math.bands[i].cutROuter * scale, startAng, endAng);
+                    ctx2.arc(0, 0, math.bands[i].cutRInner * scale, endAng, startAng, true);
+                    ctx2.closePath();
+                    ctx2.fillStyle = math.bands[i].color;
+                    ctx2.fill();
+                    ctx2.strokeStyle = "rgba(0,0,0,0.3)";
+                    ctx2.lineWidth = 1;
+                    ctx2.stroke();
+                }
+
+                ctx2.beginPath();
+                ctx2.arc(0, 0, math.patternRTop * scale, startAng, endAng);
+                ctx2.arc(0, 0, math.patternRBot * scale, endAng, startAng, true);
+                ctx2.lineTo(math.patternRBot * scale * Math.cos(startAng), math.patternRBot * scale * Math.sin(startAng));
+                ctx2.closePath();
+                ctx2.strokeStyle = "#000";
+                ctx2.setLineDash([4, 4]);
+                ctx2.stroke();
+
+                currentStartAngle += math.panelAngleRad;
+            }
+        } else {
+            // Vertical Stripes: Draw the radiating wedges
+            const wedgeAngleRad = math.totalAngleRad / math.numBands;
+            for(let i = 0; i < math.numBands; i++) {
+                const startAng = currentStartAngle;
+                const endAng = currentStartAngle + wedgeAngleRad;
+
+                ctx2.beginPath();
+                ctx2.arc(0, 0, R_out * scale, startAng, endAng);
+                ctx2.arc(0, 0, R_in * scale, endAng, startAng, true);
+                ctx2.closePath();
+                
+                ctx2.fillStyle = math.colors[i % math.colors.length];
+                ctx2.fill();
+                ctx2.strokeStyle = "#333";
+                ctx2.lineWidth = 1;
+                ctx2.stroke();
+
+                currentStartAngle += wedgeAngleRad;
+            }
+        }
+        ctx2.restore();
+    }
+
+    // --- Part 3: Final 3D Assembly ---
+    function drawPart3() {
+        while(funnelGroup.children.length > 0) { funnelGroup.remove(funnelGroup.children[0]); }
+
+        if (math.dir === 'horizontal') {
+            const segmentHeight = math.h / math.numBands;
+            let currentY = math.h / 2; 
+            for(let i=0; i < math.numBands; i++) {
+                const rStep = (math.rTop - math.rBot) / math.numBands;
+                const segRTop = math.rTop - (i * rStep);
+                const segRBot = math.rTop - ((i+1) * rStep);
+                
+                const geo = new THREE.CylinderGeometry(segRTop, segRBot, segmentHeight, 64, 1, true);
+                const mat = new THREE.MeshLambertMaterial({ color: math.bands[i].color, side: THREE.DoubleSide });
+                
+                const mesh = new THREE.Mesh(geo, mat);
+                mesh.position.y = currentY - (segmentHeight / 2);
+                funnelGroup.add(mesh);
+                currentY -= segmentHeight; 
+            }
+        } else {
+            // Vertical Stripes: use ThetaStart and ThetaLength to make cylinder slices
+            const thetaLength = (2 * Math.PI) / math.numBands;
+            for(let i=0; i < math.numBands; i++) {
+                const thetaStart = i * thetaLength;
+                // Add slight overlap (0.01) to thetaLength to prevent visual gaps between meshes in 3D
+                const geo = new THREE.CylinderGeometry(math.rTop, math.rBot, math.h, 16, 1, true, thetaStart, thetaLength + 0.01);
+                
+                const mat = new THREE.MeshLambertMaterial({ color: math.colors[i % math.colors.length], side: THREE.DoubleSide });
+                const mesh = new THREE.Mesh(geo, mat);
+                mesh.position.y = 0;
+                funnelGroup.add(mesh);
+            }
+        }
+
+        camera.position.set(0, math.h * 0.2, math.h * 1.6);
+        controls.target.set(0, 0, 0);
+        controls.update();
+    }
+
+    // --- Execution ---
+    function animate() {
+        requestAnimationFrame(animate);
+        controls.update();
+        renderer.render(scene, camera);
+    }
+
+    document.querySelectorAll('input, select').forEach(input => {
+        input.addEventListener('input', updateCalculations);
+    });
+
+    window.addEventListener('resize', () => {
+        camera.aspect = container3d.clientWidth / container3d.clientHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(container3d.clientWidth, container3d.clientHeight);
+        updateCalculations();
+    });
+
+    // Initialize
+    updateCalculations();
+    animate();
+
+</script>
+</body>
+</html>
