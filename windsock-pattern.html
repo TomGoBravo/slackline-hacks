@@ -194,7 +194,7 @@
         drawPart3();
     }
 
-    // --- Part 1: True Arcs (Grid Master Pieces) ---
+    // --- Part 1: True Arcs (Grid Pieces) ---
     function drawPart1() {
         c1.width = c1.parentElement.clientWidth;
         ctx1.clearRect(0, 0, c1.width, c1.height);
@@ -350,7 +350,6 @@
         }
 
         // 2. Build Physical 3D Seam Lines (Tubes & Cylinders)
-        // Set physical thickness relative to overall model scale
         const seamThickness = Math.max(math.slant * 0.0015, 0.05); 
         const seamMat = new THREE.MeshBasicMaterial({ color: 0x000000 });
 
@@ -370,17 +369,15 @@
         for(let p=0; p < math.vPanels; p++) {
             const theta = p * thetaLength;
             
-            // Calculate Top and Bottom coordinates for the seam line
-            const ptTop = new THREE.Vector3(math.rTop * Math.cos(theta), math.h/2, math.rTop * Math.sin(theta));
-            const ptBot = new THREE.Vector3(math.rBot * Math.cos(theta), -math.h/2, math.rBot * Math.sin(theta));
+            // Calculate Top and Bottom coordinates matching Three.js mapping
+            const ptTop = new THREE.Vector3(math.rTop * Math.sin(theta), math.h/2, math.rTop * Math.cos(theta));
+            const ptBot = new THREE.Vector3(math.rBot * Math.sin(theta), -math.h/2, math.rBot * Math.cos(theta));
             
             const midPoint = new THREE.Vector3().addVectors(ptTop, ptBot).multiplyScalar(0.5);
             
-            // Create a physical cylinder the exact length of the slant
             const cylGeo = new THREE.CylinderGeometry(seamThickness, seamThickness, math.slant, 8);
             const cyl = new THREE.Mesh(cylGeo, seamMat);
             
-            // Position at midpoint and orient along the slant direction
             cyl.position.copy(midPoint);
             const direction = new THREE.Vector3().subVectors(ptTop, ptBot).normalize();
             cyl.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), direction);
