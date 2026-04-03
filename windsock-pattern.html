@@ -45,12 +45,14 @@
                     <option value="single">Single color</option>
                 </select>
             </div>
+            <div class="control-group"><label>Outside stripe count</label><input type="number" id="inStripeCount" value="0" min="0" step="1"></div>
+            <div class="control-group"><label>Outside stripe width (in)</label><input type="number" id="inStripeWidth" value="2" min="0.1" step="0.1"></div>
         </div>
         <div class="results-grid" id="results"></div>
     </div>
 
     <div class="panel">
-        <h2>Part 1: SVG Cut Files</h2>
+        <h2>Cut single color pieces</h2>
         <p id="part1desc">Click the button below to download a true-scale (1 unit = 1 inch) vector file containing every single piece required for your windsock. You can open this file in Inkscape or Illustrator to manually nest the pieces onto your fabric width.</p>
         <button class="export-btn" onclick="downloadSVG()">Download SVG for Inkscape</button>
         <br><br>
@@ -59,14 +61,20 @@
     </div>
 
     <div class="panel">
-        <h2>Part 2: Pieces assembled flat</h2>
+        <h2>Pieces assembled flat</h2>
         <p>This shows the full grid of pieces joined side-by-side at their seams to form the complete flat pattern. Oriented with the wide top opening at the top of the diagram. The black lines indicate seams.</p>
         <canvas id="canvasPart2" height="450"></canvas>
     </div>
 
+    <div class="panel" id="panelStripes" style="display:none;">
+        <h2>Add stripes</h2>
+        <p>This shows the placement of the outside stripes sewn onto the flat assembly before rolling.</p>
+        <canvas id="canvasStripes" height="450"></canvas>
+    </div>
+
     <div class="panel">
-        <h2>Part 3: Final 3D Assembled Windsock</h2>
-        <p>Interactive 3D view showing the assembled grid. Real physical seam lines are drawn to scale. Click and drag to rotate, scroll to zoom.</p>
+        <h2>Final 3D Assembled Windsock</h2>
+        <p>Interactive 3D view showing the assembled grid. Real physical seam lines and applied outside stripes are drawn to scale. Click and drag to rotate, scroll to zoom.</p>
         <div class="uploader-wrapper">
             <label for="bgUploader"><strong>Upload 3D Background Image:</strong> </label>
             <input type="file" id="bgUploader" accept="image/*">
@@ -82,6 +90,8 @@
     const ctx1 = c1.getContext('2d');
     const c2 = document.getElementById('canvasPart2');
     const ctx2 = c2.getContext('2d');
+    const c3 = document.getElementById('canvasStripes');
+    const ctx3 = c3.getContext('2d');
     
     // 3D Setup
     const container3d = document.getElementById('canvas3d');
@@ -103,6 +113,7 @@
     let funnelGroup = new THREE.Group();
     scene.add(funnelGroup);
 
+    // Image Upload
     document.getElementById('bgUploader').addEventListener('change', function(e) {
         const file = e.target.files[0];
         if (file) {
@@ -117,6 +128,7 @@
         }
     });
 
+    // Color Handlers
     function getPieceColor(row, col, pattern) {
         const colors = ['#e63946', '#f1faee']; 
         if (pattern === 'single') return colors[0];
@@ -132,6 +144,7 @@
         return 'Red';
     }
 
+    // SVG Drawing Helpers
     function polarToCartesian(centerX, centerY, radius, angleInRadians) {
         return {
             x: centerX + (radius * Math.cos(angleInRadians)),
@@ -144,9 +157,7 @@
         const endOuter = polarToCartesian(x, y, rOuter, startAngleRad);
         const startInner = polarToCartesian(x, y, rInner, startAngleRad);
         const endInner = polarToCartesian(x, y, rInner, endAngleRad);
-        
         const largeArcFlag = endAngleRad - startAngleRad <= Math.PI ? "0" : "1";
-
         return [
             "M", startOuter.x.toFixed(4), startOuter.y.toFixed(4),
             "A", rOuter.toFixed(4), rOuter.toFixed(4), 0, largeArcFlag, 0, endOuter.x.toFixed(4), endOuter.y.toFixed(4),
@@ -156,7 +167,27 @@
         ].join(" ");
     }
 
-    // --- Calculation Logic ---
+    // --- State Persistence ---
+    function loadStateFromURL() {
+        const params = new URLSearchParams(window.location.search);
+        document.querySelectorAll('input, select').forEach(input => {
+            if(input.id !== 'bgUploader' && params.has(input.id)) {
+                input.value = params.get(input.id);
+            }
+        });
+    }
+
+    function saveStateToURL() {
+        const params = new URLSearchParams();
+        document.querySelectorAll('input, select').forEach(input => {
+            if(input.id !== 'bgUploader') {
+                params.set(input.id, input.value);
+            }
+        });
+        window.history.replaceState({}, '', `${window.location.pathname}?${params.toString()}`);
+    }
+
+    // --- Core Calculation Logic ---
     function updateCalculations() {
         const dTop = parseFloat(document.getElementById('inTop').value);
         const dBot = parseFloat(document.getElementById('inBot').value);
@@ -165,9 +196,12 @@
         const hBands = parseInt(document.getElementById('inHBands').value) || 5;
         const vPanels = parseInt(document.getElementById('inVPanels').value) || 2;
         const dir = document.getElementById('inDir').value;
+        const stripeCount = parseInt(document.getElementById('inStripeCount').value) || 0;
+        const stripeWidth = parseFloat(document.getElementById('inStripeWidth').value) || 2;
 
         const rTop = dTop / 2;
         const rBot = dBot / 2;
+        const topFinishedCirc = dTop * Math.PI;
         
         const slant = Math.sqrt(Math.pow(h, 2) + Math.pow(rTop - rBot, 2));
         const apexDist = (rTop * slant) / (rTop - rBot);
@@ -188,36 +222,48 @@
             const cutROuter = rOuter + seam;
             const cutRInner = rInner - seam;
             
-            const chord = 2 * cutROuter * Math.sin(panelAngleRad / 2);
-            const height = cutROuter - cutRInner * Math.cos(panelAngleRad / 2);
+            const seamAngle = seam / rInner; 
+            const cutAngleRad = panelAngleRad + (seamAngle * 2);
+            
+            const topCirc = cutROuter * cutAngleRad;
+            const botCirc = cutRInner * cutAngleRad;
+            
+            const chord = 2 * cutROuter * Math.sin(cutAngleRad / 2);
+            const height = cutROuter - cutRInner * Math.cos(cutAngleRad / 2);
             
             pieces.push({
                 rowIndex: i,
                 rOuter: rOuter, rInner: rInner,
                 cutROuter: cutROuter, cutRInner: cutRInner,
+                seamAngle: seamAngle,
                 cutWidth: bandSlantWidth + (seam * 2),
+                topCirc: topCirc, botCirc: botCirc,
                 boxWidth: chord, boxHeight: height
             });
         }
 
-        math = { dTop, dBot, h, seam, hBands, vPanels, dir, rTop, rBot, slant, patternRTop, patternRBot, totalAngleRad, panelAngleRad, pieces };
+        math = { dTop, dBot, h, seam, hBands, vPanels, dir, stripeCount, stripeWidth, rTop, rBot, slant, patternRTop, patternRBot, totalAngleRad, panelAngleRad, pieces };
 
         document.getElementById('results').innerHTML = `
-            <div>Total Slant Height: ${slant.toFixed(2)}"</div>
-            <div>Full Pattern Angle: ${totalAngleDeg.toFixed(1)}&deg;</div>
-            <div>Total Grid Pieces: ${hBands * vPanels}</div>
-            <div>Pattern: ${dir === 'single' ? 'Single Color' : dir === 'horizontal' ? 'Horizontal Bands' : 'Vertical Stripes'}</div>
+            <div>Finished Slant Height: ${slant.toFixed(2)}"</div>
+            <div>Finished Pattern Angle: ${totalAngleDeg.toFixed(1)}&deg;</div>
+            <div>Top Finished Circumference: ${topFinishedCirc.toFixed(2)}"</div>
         `;
+
+        document.getElementById('panelStripes').style.display = stripeCount > 0 ? 'block' : 'none';
+
+        saveStateToURL();
 
         drawPart1();
         drawPart2();
+        if (stripeCount > 0) drawStripes2D();
         drawPart3();
     }
 
-    // --- SVG Download Logic ---
+    // --- SVG Export ---
     function downloadSVG() {
         let svgContent = '';
-        const margin = 2; // inches padding between pieces
+        const margin = 2; 
         let currentX = margin;
         let currentY = margin;
         let maxHeightInRow = 0;
@@ -225,35 +271,30 @@
 
         let itemIndex = 0;
 
-        // Loop through the entire physical grid to generate every piece needed
         for(let p = 0; p < math.vPanels; p++) {
             for(let i = 0; i < math.hBands; i++) {
                 const piece = math.pieces[i];
                 const colorHex = getPieceColor(i, p, math.dir);
                 const colorName = getPieceColorName(i, p, math.dir);
                 
-                // SVG specific angles (SVG Y goes down, so we orient them "rainbow" style)
                 const startAng = Math.PI * 1.5 - math.panelAngleRad / 2;
                 const endAng = Math.PI * 1.5 + math.panelAngleRad / 2;
+                
+                const cutStartAng = startAng - piece.seamAngle;
+                const cutEndAng = endAng + piece.seamAngle;
 
-                // Move apex so the top of the arc sits at currentY
                 const apexX = currentX + (piece.boxWidth / 2);
                 const apexY = currentY + piece.cutROuter; 
 
-                // Generate Path Data
-                const cutPath = describeSVGArcSegment(apexX, apexY, piece.cutROuter, piece.cutRInner, startAng, endAng);
+                const cutPath = describeSVGArcSegment(apexX, apexY, piece.cutROuter, piece.cutRInner, cutStartAng, cutEndAng);
                 const seamPath = describeSVGArcSegment(apexX, apexY, piece.rOuter, piece.rInner, startAng, endAng);
 
                 svgContent += `<g id="Piece_Level${i+1}_Panel${p+1}">`;
-                // Outer Cut Line
                 svgContent += `<path d="${cutPath}" fill="${colorHex}" fill-opacity="0.2" stroke="black" stroke-width="0.05" />`;
-                // Inner Seam Line
                 svgContent += `<path d="${seamPath}" fill="none" stroke="#666" stroke-width="0.05" stroke-dasharray="0.2,0.2" />`;
-                // Label
                 svgContent += `<text x="${apexX}" y="${currentY + piece.boxHeight / 2}" font-family="sans-serif" font-size="1" fill="black" text-anchor="middle">Level ${i+1} (${colorName})</text>`;
                 svgContent += `</g>`;
 
-                // Layout logic to stack them neatly in the SVG
                 maxHeightInRow = Math.max(maxHeightInRow, piece.boxHeight);
                 currentX += piece.boxWidth + margin;
                 itemIndex++;
@@ -266,7 +307,6 @@
             }
         }
 
-        // Wrap in SVG tags
         const totalWidth = (itemsPerRow * (math.pieces[0].boxWidth + margin)) + margin;
         const totalHeight = currentY + maxHeightInRow + margin;
 
@@ -275,7 +315,6 @@
                         svgContent + 
                         `\n</svg>`;
 
-        // Trigger Download
         const blob = new Blob([fullSVG], {type: "image/svg+xml;charset=utf-8"});
         const url = URL.createObjectURL(blob);
         const link = document.createElement("a");
@@ -286,12 +325,12 @@
         document.body.removeChild(link);
     }
 
-    // --- Part 1: True Arcs Visual Preview ---
+    // --- Visual Previews ---
     function drawPart1() {
         c1.width = c1.parentElement.clientWidth;
         ctx1.clearRect(0, 0, c1.width, c1.height);
         
-        const maxChord = 2 * math.pieces[0].cutROuter * Math.sin(math.panelAngleRad / 2);
+        const maxChord = 2 * math.pieces[0].cutROuter * Math.sin((math.panelAngleRad + 2 * math.pieces[0].seamAngle) / 2);
         const scale = Math.min((c1.width * 0.5) / maxChord, 0.4); 
         
         ctx1.save();
@@ -303,10 +342,13 @@
             const startAng = Math.PI * 1.5 - math.panelAngleRad / 2;
             const endAng = Math.PI * 1.5 + math.panelAngleRad / 2;
             
+            const cutStartAng = startAng - piece.seamAngle;
+            const cutEndAng = endAng + piece.seamAngle;
+            
             ctx1.save();
             ctx1.beginPath();
-            ctx1.arc(0, apexY, piece.cutROuter * scale, startAng, endAng);
-            ctx1.arc(0, apexY, piece.cutRInner * scale, endAng, startAng, true);
+            ctx1.arc(0, apexY, piece.cutROuter * scale, cutStartAng, cutEndAng);
+            ctx1.arc(0, apexY, piece.cutRInner * scale, cutEndAng, cutStartAng, true);
             ctx1.closePath();
             ctx1.fillStyle = getPieceColor(piece.rowIndex, 0, math.dir);
             ctx1.fill();
@@ -344,7 +386,6 @@
         ctx1.restore();
     }
 
-    // --- Part 2: Pieces assembled flat ---
     function drawPart2() {
         c2.width = c2.parentElement.clientWidth;
         ctx2.clearRect(0, 0, c2.width, c2.height);
@@ -369,33 +410,85 @@
 
             for(let i=0; i < math.hBands; i++) {
                 ctx2.beginPath();
-                ctx2.arc(0, 0, math.pieces[i].cutROuter * scale, startAng, endAng);
-                ctx2.arc(0, 0, math.pieces[i].cutRInner * scale, endAng, startAng, true);
+                ctx2.arc(0, 0, math.pieces[i].rOuter * scale, startAng, endAng);
+                ctx2.arc(0, 0, math.pieces[i].rInner * scale, endAng, startAng, true);
                 ctx2.closePath();
-                
                 ctx2.fillStyle = getPieceColor(i, p, math.dir);
                 ctx2.fill();
-                
                 ctx2.strokeStyle = "#000000";
                 ctx2.lineWidth = 1.5;
                 ctx2.stroke();
             }
-
-            ctx2.beginPath();
-            ctx2.arc(0, 0, math.patternRTop * scale, startAng, endAng);
-            ctx2.arc(0, 0, math.patternRBot * scale, endAng, startAng, true);
-            ctx2.lineTo(math.patternRBot * scale * Math.cos(startAng), math.patternRBot * scale * Math.sin(startAng));
-            ctx2.closePath();
-            ctx2.strokeStyle = "#000";
-            ctx2.lineWidth = 1;
-            ctx2.setLineDash([4, 4]);
-            ctx2.stroke();
-            ctx2.setLineDash([]); 
-
             currentStartAngle += math.panelAngleRad;
         }
 
+        const totalStartAng = (Math.PI * 1.5) - (math.totalAngleRad / 2);
+        const totalEndAng = totalStartAng + math.totalAngleRad;
+        const avgSeamAngle = math.seam / math.patternRBot; 
+
+        ctx2.beginPath();
+        ctx2.arc(0, 0, (math.patternRTop + math.seam) * scale, totalStartAng - avgSeamAngle, totalEndAng + avgSeamAngle);
+        ctx2.arc(0, 0, (math.patternRBot - math.seam) * scale, totalEndAng + avgSeamAngle, totalStartAng - avgSeamAngle, true);
+        ctx2.closePath();
+        ctx2.strokeStyle = "#000";
+        ctx2.lineWidth = 1;
+        ctx2.setLineDash([4, 4]);
+        ctx2.stroke();
+        ctx2.setLineDash([]); 
+
         ctx2.restore();
+    }
+
+    function drawStripes2D() {
+        c3.width = c3.parentElement.clientWidth;
+        ctx3.clearRect(0, 0, c3.width, c3.height);
+        
+        const R_out = math.patternRTop;
+        const R_in = math.patternRBot;
+        
+        const minY = -(R_out + math.seam); 
+        const maxY = -(R_in - math.seam) * Math.cos(math.totalAngleRad / 2); 
+        const fanHeight = maxY - minY;
+        const fanWidth = 2 * (R_out + math.seam) * Math.sin(math.totalAngleRad / 2);
+        const scale = Math.min((c3.width - 40) / fanWidth, (c3.height - 40) / fanHeight);
+        
+        ctx3.save();
+        ctx3.translate(c3.width / 2, 20 + (-minY * scale)); 
+        
+        let currentStartAngle = (Math.PI * 1.5) - (math.totalAngleRad / 2);
+
+        // Draw faint base pattern
+        ctx3.beginPath();
+        ctx3.arc(0, 0, R_out * scale, currentStartAngle, currentStartAngle + math.totalAngleRad);
+        ctx3.arc(0, 0, R_in * scale, currentStartAngle + math.totalAngleRad, currentStartAngle, true);
+        ctx3.closePath();
+        ctx3.fillStyle = "#e0e0e0";
+        ctx3.fill();
+        ctx3.strokeStyle = "#ccc";
+        ctx3.stroke();
+
+        // Draw Outside Stripes Overlaid
+        const stripeSpacing = math.totalAngleRad / math.stripeCount;
+        for(let i=0; i < math.stripeCount; i++) {
+            const theta = currentStartAngle + (i * stripeSpacing);
+            ctx3.save();
+            ctx3.rotate(theta);
+            
+            ctx3.fillStyle = "rgba(40, 40, 40, 0.8)";
+            const halfW = (math.stripeWidth / 2) * scale;
+            
+            ctx3.beginPath();
+            ctx3.moveTo(R_in * scale, -halfW);
+            ctx3.lineTo(R_out * scale, -halfW);
+            ctx3.lineTo(R_out * scale, halfW);
+            ctx3.lineTo(R_in * scale, halfW);
+            ctx3.closePath();
+            ctx3.fill();
+            
+            ctx3.restore();
+        }
+
+        ctx3.restore();
     }
 
     // --- Part 3: Final 3D Assembly ---
@@ -406,6 +499,7 @@
         const thetaLength = (2 * Math.PI) / math.vPanels;
         let currentY = math.h / 2; 
         
+        // 1. Fabric panels
         for(let i=0; i < math.hBands; i++) {
             const rStep = (math.rTop - math.rBot) / math.hBands;
             const segRTop = math.rTop - (i * rStep);
@@ -424,13 +518,13 @@
             currentY -= segmentHeight; 
         }
 
+        // 2. Seam Tubes
         const seamThickness = Math.max(math.slant * 0.0015, 0.05); 
         const seamMat = new THREE.MeshBasicMaterial({ color: 0x000000 });
 
         for(let i=0; i <= math.hBands; i++) {
             const r = math.rTop - (i * (math.rTop - math.rBot) / math.hBands);
             const y = (math.h / 2) - (i * segmentHeight);
-            
             const torusGeo = new THREE.TorusGeometry(r, seamThickness, 8, 64);
             const torus = new THREE.Mesh(torusGeo, seamMat);
             torus.rotation.x = Math.PI / 2;
@@ -442,17 +536,38 @@
             const theta = p * thetaLength;
             const ptTop = new THREE.Vector3(math.rTop * Math.sin(theta), math.h/2, math.rTop * Math.cos(theta));
             const ptBot = new THREE.Vector3(math.rBot * Math.sin(theta), -math.h/2, math.rBot * Math.cos(theta));
-            
             const midPoint = new THREE.Vector3().addVectors(ptTop, ptBot).multiplyScalar(0.5);
             
             const cylGeo = new THREE.CylinderGeometry(seamThickness, seamThickness, math.slant, 8);
             const cyl = new THREE.Mesh(cylGeo, seamMat);
-            
             cyl.position.copy(midPoint);
             const direction = new THREE.Vector3().subVectors(ptTop, ptBot).normalize();
             cyl.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), direction);
-            
             funnelGroup.add(cyl);
+        }
+
+        // 3. Outside Stripes Geometry (Physical width curved against the cone)
+        if (math.stripeCount > 0) {
+            const stripeMat = new THREE.MeshLambertMaterial({ color: 0x222222, side: THREE.DoubleSide });
+            const stripeThetaStep = (2 * Math.PI) / math.stripeCount;
+            const avgRadius = (math.rTop + math.rBot) / 2;
+            // Angular representation of the physical stripe width
+            const stripeAngleWidth = math.stripeWidth / avgRadius; 
+
+            for(let i=0; i < math.stripeCount; i++) {
+                const thetaCenter = i * stripeThetaStep;
+                // Offset slightly outwards to float above the seams
+                const sRTop = math.rTop + 0.15;
+                const sRBot = math.rBot + 0.15;
+                
+                const stripeGeo = new THREE.CylinderGeometry(
+                    sRTop, sRBot, math.h, 16, 1, false, 
+                    thetaCenter - (stripeAngleWidth / 2), stripeAngleWidth
+                );
+                const stripeMesh = new THREE.Mesh(stripeGeo, stripeMat);
+                stripeMesh.position.y = 0;
+                funnelGroup.add(stripeMesh);
+            }
         }
 
         camera.position.set(0, math.h * 0.2, math.h * 1.6);
@@ -479,6 +594,8 @@
         updateCalculations();
     });
 
+    // Initialize logic
+    loadStateFromURL();
     updateCalculations();
     animate();
 
