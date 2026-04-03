@@ -21,6 +21,8 @@
         #canvas3d:active { cursor: grabbing; }
         .uploader-wrapper { margin-bottom: 10px; padding: 10px; background: #f8f9fa; border: 1px solid #ddd; border-radius: 4px;}
         .uploader-wrapper input { font-family: inherit; }
+        .export-btn { background: #2a9d8f; color: white; padding: 12px 20px; border: none; border-radius: 4px; font-size: 16px; font-weight: bold; cursor: pointer; display: inline-block; margin-top: 10px; text-decoration: none;}
+        .export-btn:hover { background: #21867a; }
     </style>
 </head>
 <body>
@@ -48,9 +50,12 @@
     </div>
 
     <div class="panel">
-        <h2>Part 1: Cut single color pieces</h2>
-        <p id="part1desc">Dimensions for cutting the unique grid pieces. Measurements below include the seam allowances on all edges.</p>
-        <canvas id="canvasPart1" height="850"></canvas>
+        <h2>Part 1: SVG Cut Files</h2>
+        <p id="part1desc">Click the button below to download a true-scale (1 unit = 1 inch) vector file containing every single piece required for your windsock. You can open this file in Inkscape or Illustrator to manually nest the pieces onto your fabric width.</p>
+        <button class="export-btn" onclick="downloadSVG()">Download SVG for Inkscape</button>
+        <br><br>
+        <p><i>Visual preview of unique piece shapes:</i></p>
+        <canvas id="canvasPart1" height="600"></canvas>
     </div>
 
     <div class="panel">
@@ -98,7 +103,6 @@
     let funnelGroup = new THREE.Group();
     scene.add(funnelGroup);
 
-    // Background Image Uploader Logic
     document.getElementById('bgUploader').addEventListener('change', function(e) {
         const file = e.target.files[0];
         if (file) {
@@ -113,9 +117,8 @@
         }
     });
 
-    // Color Logic Function
     function getPieceColor(row, col, pattern) {
-        const colors = ['#e63946', '#f1faee']; // Red, White
+        const colors = ['#e63946', '#f1faee']; 
         if (pattern === 'single') return colors[0];
         if (pattern === 'horizontal') return colors[row % colors.length];
         if (pattern === 'vertical') return colors[col % colors.length];
@@ -129,6 +132,30 @@
         return 'Red';
     }
 
+    function polarToCartesian(centerX, centerY, radius, angleInRadians) {
+        return {
+            x: centerX + (radius * Math.cos(angleInRadians)),
+            y: centerY + (radius * Math.sin(angleInRadians))
+        };
+    }
+
+    function describeSVGArcSegment(x, y, rOuter, rInner, startAngleRad, endAngleRad) {
+        const startOuter = polarToCartesian(x, y, rOuter, endAngleRad);
+        const endOuter = polarToCartesian(x, y, rOuter, startAngleRad);
+        const startInner = polarToCartesian(x, y, rInner, startAngleRad);
+        const endInner = polarToCartesian(x, y, rInner, endAngleRad);
+        
+        const largeArcFlag = endAngleRad - startAngleRad <= Math.PI ? "0" : "1";
+
+        return [
+            "M", startOuter.x.toFixed(4), startOuter.y.toFixed(4),
+            "A", rOuter.toFixed(4), rOuter.toFixed(4), 0, largeArcFlag, 0, endOuter.x.toFixed(4), endOuter.y.toFixed(4),
+            "L", startInner.x.toFixed(4), startInner.y.toFixed(4),
+            "A", rInner.toFixed(4), rInner.toFixed(4), 0, largeArcFlag, 1, endInner.x.toFixed(4), endInner.y.toFixed(4),
+            "Z"
+        ].join(" ");
+    }
+
     // --- Calculation Logic ---
     function updateCalculations() {
         const dTop = parseFloat(document.getElementById('inTop').value);
@@ -139,12 +166,9 @@
         const vPanels = parseInt(document.getElementById('inVPanels').value) || 2;
         const dir = document.getElementById('inDir').value;
 
-        document.getElementById('part1desc').innerHTML = `Because you have ${hBands} horizontal levels, there are <b>${hBands} unique piece shapes</b>. You will need to cut ${vPanels} of each shape to complete the circumference.`;
-
         const rTop = dTop / 2;
         const rBot = dBot / 2;
         
-        // Slant height & Apex math
         const slant = Math.sqrt(Math.pow(h, 2) + Math.pow(rTop - rBot, 2));
         const apexDist = (rTop * slant) / (rTop - rBot);
         const patternRTop = apexDist;
@@ -164,9 +188,6 @@
             const cutROuter = rOuter + seam;
             const cutRInner = rInner - seam;
             
-            const topCirc = (cutROuter * panelAngleRad) + (seam * 2); 
-            const botCirc = (cutRInner * panelAngleRad) + (seam * 2);
-            
             const chord = 2 * cutROuter * Math.sin(panelAngleRad / 2);
             const height = cutROuter - cutRInner * Math.cos(panelAngleRad / 2);
             
@@ -175,7 +196,6 @@
                 rOuter: rOuter, rInner: rInner,
                 cutROuter: cutROuter, cutRInner: cutRInner,
                 cutWidth: bandSlantWidth + (seam * 2),
-                topCirc: topCirc, botCirc: botCirc,
                 boxWidth: chord, boxHeight: height
             });
         }
@@ -194,7 +214,79 @@
         drawPart3();
     }
 
-    // --- Part 1: True Arcs (Grid Pieces) ---
+    // --- SVG Download Logic ---
+    function downloadSVG() {
+        let svgContent = '';
+        const margin = 2; // inches padding between pieces
+        let currentX = margin;
+        let currentY = margin;
+        let maxHeightInRow = 0;
+        const itemsPerRow = 3; 
+
+        let itemIndex = 0;
+
+        // Loop through the entire physical grid to generate every piece needed
+        for(let p = 0; p < math.vPanels; p++) {
+            for(let i = 0; i < math.hBands; i++) {
+                const piece = math.pieces[i];
+                const colorHex = getPieceColor(i, p, math.dir);
+                const colorName = getPieceColorName(i, p, math.dir);
+                
+                // SVG specific angles (SVG Y goes down, so we orient them "rainbow" style)
+                const startAng = Math.PI * 1.5 - math.panelAngleRad / 2;
+                const endAng = Math.PI * 1.5 + math.panelAngleRad / 2;
+
+                // Move apex so the top of the arc sits at currentY
+                const apexX = currentX + (piece.boxWidth / 2);
+                const apexY = currentY + piece.cutROuter; 
+
+                // Generate Path Data
+                const cutPath = describeSVGArcSegment(apexX, apexY, piece.cutROuter, piece.cutRInner, startAng, endAng);
+                const seamPath = describeSVGArcSegment(apexX, apexY, piece.rOuter, piece.rInner, startAng, endAng);
+
+                svgContent += `<g id="Piece_Level${i+1}_Panel${p+1}">`;
+                // Outer Cut Line
+                svgContent += `<path d="${cutPath}" fill="${colorHex}" fill-opacity="0.2" stroke="black" stroke-width="0.05" />`;
+                // Inner Seam Line
+                svgContent += `<path d="${seamPath}" fill="none" stroke="#666" stroke-width="0.05" stroke-dasharray="0.2,0.2" />`;
+                // Label
+                svgContent += `<text x="${apexX}" y="${currentY + piece.boxHeight / 2}" font-family="sans-serif" font-size="1" fill="black" text-anchor="middle">Level ${i+1} (${colorName})</text>`;
+                svgContent += `</g>`;
+
+                // Layout logic to stack them neatly in the SVG
+                maxHeightInRow = Math.max(maxHeightInRow, piece.boxHeight);
+                currentX += piece.boxWidth + margin;
+                itemIndex++;
+
+                if (itemIndex % itemsPerRow === 0) {
+                    currentX = margin;
+                    currentY += maxHeightInRow + margin;
+                    maxHeightInRow = 0;
+                }
+            }
+        }
+
+        // Wrap in SVG tags
+        const totalWidth = (itemsPerRow * (math.pieces[0].boxWidth + margin)) + margin;
+        const totalHeight = currentY + maxHeightInRow + margin;
+
+        const fullSVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${totalWidth} ${totalHeight}" width="${totalWidth}in" height="${totalHeight}in">\n` + 
+                        `<desc>Windsock Pattern. Units are in inches (1 unit = 1 inch).</desc>\n` +
+                        svgContent + 
+                        `\n</svg>`;
+
+        // Trigger Download
+        const blob = new Blob([fullSVG], {type: "image/svg+xml;charset=utf-8"});
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = "windsock_pieces_true_scale.svg";
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    }
+
+    // --- Part 1: True Arcs Visual Preview ---
     function drawPart1() {
         c1.width = c1.parentElement.clientWidth;
         ctx1.clearRect(0, 0, c1.width, c1.height);
@@ -216,7 +308,6 @@
             ctx1.arc(0, apexY, piece.cutROuter * scale, startAng, endAng);
             ctx1.arc(0, apexY, piece.cutRInner * scale, endAng, startAng, true);
             ctx1.closePath();
-            
             ctx1.fillStyle = getPieceColor(piece.rowIndex, 0, math.dir);
             ctx1.fill();
             ctx1.strokeStyle = "#000";
@@ -240,28 +331,13 @@
             const textStartY = currentY;
 
             ctx1.font = "bold 14px sans-serif";
-            ctx1.fillText(`Level ${piece.rowIndex + 1} Piece`, textStartX, textStartY);
-            
-            ctx1.font = "italic 13px sans-serif";
-            let colorDesc = "";
-            if (math.dir === 'single') colorDesc = `Cut ${math.vPanels} Red`;
-            else if (math.dir === 'horizontal') colorDesc = `Cut ${math.vPanels} ${getPieceColorName(piece.rowIndex, 0, math.dir)}`;
-            else colorDesc = `Cut ${Math.ceil(math.vPanels/2)} Red, ${Math.floor(math.vPanels/2)} White`;
-            ctx1.fillText(colorDesc, textStartX, textStartY + 18);
-            
+            ctx1.fillText(`Level ${piece.rowIndex + 1} Shape`, textStartX, textStartY);
             ctx1.font = "14px sans-serif";
-            ctx1.fillText(`Top Cut Arc: ${piece.topCirc.toFixed(2)}"`, textStartX, textStartY + 40);
-            ctx1.fillText(`Bot Cut Arc: ${piece.botCirc.toFixed(2)}"`, textStartX, textStartY + 60);
-            ctx1.fillText(`Top Radius: ${piece.cutROuter.toFixed(2)}"`, textStartX, textStartY + 80);
-            ctx1.fillText(`Bot Radius: ${piece.cutRInner.toFixed(2)}"`, textStartX, textStartY + 100);
-            ctx1.fillText(`Cut Width: ${piece.cutWidth.toFixed(2)}"`, textStartX, textStartY + 120);
-            
-            ctx1.fillStyle = "#555"; 
-            ctx1.fillText(`Bounding Box W: ${piece.boxWidth.toFixed(2)}"`, textStartX, textStartY + 145);
-            ctx1.fillText(`Bounding Box H: ${piece.boxHeight.toFixed(2)}"`, textStartX, textStartY + 165);
+            ctx1.fillText(`Bounding Box W: ${piece.boxWidth.toFixed(2)}"`, textStartX, textStartY + 20);
+            ctx1.fillText(`Bounding Box H: ${piece.boxHeight.toFixed(2)}"`, textStartX, textStartY + 40);
             
             const arcHeight = piece.boxHeight * scale;
-            currentY += Math.max(arcHeight, 185) + 40; 
+            currentY += Math.max(arcHeight, 60) + 40; 
         });
         
         if (currentY > c1.height) { c1.height = currentY + 20; updateCalculations(); }
@@ -322,7 +398,7 @@
         ctx2.restore();
     }
 
-    // --- Part 3: Final 3D Assembly with Physical Seam Tubes ---
+    // --- Part 3: Final 3D Assembly ---
     function drawPart3() {
         while(funnelGroup.children.length > 0) { funnelGroup.remove(funnelGroup.children[0]); }
 
@@ -330,7 +406,6 @@
         const thetaLength = (2 * Math.PI) / math.vPanels;
         let currentY = math.h / 2; 
         
-        // 1. Build the Solid Fabric Panels
         for(let i=0; i < math.hBands; i++) {
             const rStep = (math.rTop - math.rBot) / math.hBands;
             const segRTop = math.rTop - (i * rStep);
@@ -349,11 +424,9 @@
             currentY -= segmentHeight; 
         }
 
-        // 2. Build Physical 3D Seam Lines (Tubes & Cylinders)
         const seamThickness = Math.max(math.slant * 0.0015, 0.05); 
         const seamMat = new THREE.MeshBasicMaterial({ color: 0x000000 });
 
-        // A. Horizontal Seams (Rings)
         for(let i=0; i <= math.hBands; i++) {
             const r = math.rTop - (i * (math.rTop - math.rBot) / math.hBands);
             const y = (math.h / 2) - (i * segmentHeight);
@@ -365,11 +438,8 @@
             funnelGroup.add(torus);
         }
 
-        // B. Vertical Seams (Lines along the slant)
         for(let p=0; p < math.vPanels; p++) {
             const theta = p * thetaLength;
-            
-            // Calculate Top and Bottom coordinates matching Three.js mapping
             const ptTop = new THREE.Vector3(math.rTop * Math.sin(theta), math.h/2, math.rTop * Math.cos(theta));
             const ptBot = new THREE.Vector3(math.rBot * Math.sin(theta), -math.h/2, math.rBot * Math.cos(theta));
             
@@ -390,7 +460,6 @@
         controls.update();
     }
 
-    // --- Execution ---
     function animate() {
         requestAnimationFrame(animate);
         controls.update();
@@ -410,7 +479,6 @@
         updateCalculations();
     });
 
-    // Initialize
     updateCalculations();
     animate();
 
