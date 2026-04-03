@@ -1,0 +1,402 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg
+   viewBox="0 0 299.99999 60"
+   width="300in"
+   height="60in"
+   version="1.1"
+   id="svg20"
+   sodipodi:docname="windsock_pieces_true_scale_5b_2p_36t_72h_12b.svg"
+   inkscape:version="1.4.2 (ebf0e940d0, 2025-05-08)"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <defs
+     id="defs20">
+    <rect
+       x="8487.6005"
+       y="953.45292"
+       width="1289.9658"
+       height="1065.6239"
+       id="rect25" />
+    <rect
+       x="8693.2472"
+       y="953.45292"
+       width="859.97714"
+       height="691.72074"
+       id="rect23" />
+    <rect
+       x="8768.0278"
+       y="1196.4899"
+       width="56.085466"
+       height="130.86609"
+       id="rect22" />
+    <rect
+       x="8487.6006"
+       y="953.45294"
+       width="1289.9658"
+       height="1065.6239"
+       id="rect25-0" />
+  </defs>
+  <sodipodi:namedview
+     id="namedview20"
+     pagecolor="#ffffff"
+     bordercolor="#666666"
+     borderopacity="1.0"
+     inkscape:showpageshadow="2"
+     inkscape:pageopacity="0.0"
+     inkscape:pagecheckerboard="0"
+     inkscape:deskcolor="#d1d1d1"
+     inkscape:document-units="in"
+     inkscape:zoom="0.053489794"
+     inkscape:cx="12684.663"
+     inkscape:cy="3271.6522"
+     inkscape:window-width="1920"
+     inkscape:window-height="1131"
+     inkscape:window-x="0"
+     inkscape:window-y="0"
+     inkscape:window-maximized="1"
+     inkscape:current-layer="svg20" />
+  <desc
+     id="desc1">Windsock Pattern. Units are in inches (1 unit = 1 inch).</desc>
+  <g
+     id="Piece_Level1_Panel1"
+     transform="translate(-0.37118202,0.2811383)">
+    <path
+       d="M 58.1776,5.6471 A 109.9897,109.9897 0 0 0 2,5.6471 l 3.9835,15.0814 a 94.3911,94.3911 0 0 1 48.2106,0 z"
+       fill="#e63946"
+       fill-opacity="0.2"
+       stroke="#000000"
+       stroke-width="0.05"
+       id="path1" />
+    <path
+       d="m 58.0499,6.1305 a 109.4897,109.4897 0 0 0 -55.9222,0 l 3.7281,14.1146 a 94.8911,94.8911 0 0 1 48.466,0 z"
+       fill="none"
+       stroke="#666666"
+       stroke-width="0.05"
+       stroke-dasharray="0.2, 0.2"
+       id="path2" />
+    <text
+       x="30.088816"
+       y="11.364243"
+       font-family="sans-serif"
+       font-size="1px"
+       fill="#000000"
+       text-anchor="middle"
+       id="text2">Level 1 (Red)</text>
+  </g>
+  <g
+     id="Piece_Level2_Panel1"
+     transform="rotate(0.03075363,-29637.214,88694.599)">
+    <path
+       d="m 108.899,5.163 a 95.3911,95.3911 0 0 0 -48.7214,0 l 3.9836,15.0814 a 79.7925,79.7925 0 0 1 40.7542,0 z"
+       fill="#f1faee"
+       fill-opacity="0.2"
+       stroke="#000000"
+       stroke-width="0.05"
+       id="path3" />
+    <path
+       d="m 108.7713,5.6464 a 94.8911,94.8911 0 0 0 -48.466,0 l 3.7282,14.1146 a 80.2925,80.2925 0 0 1 41.0096,0 z"
+       fill="none"
+       stroke="#666666"
+       stroke-width="0.05"
+       stroke-dasharray="0.2, 0.2"
+       id="path4" />
+    <text
+       x="84.5383"
+       y="11.12221"
+       font-family="sans-serif"
+       font-size="1px"
+       fill="#000000"
+       text-anchor="middle"
+       id="text4">Level 2 (White)</text>
+  </g>
+  <g
+     id="Piece_Level3_Panel1"
+     transform="translate(-51.411672,20.447826)">
+    <path
+       d="m 152.164,4.6789 a 80.7925,80.7925 0 0 0 -41.265,0 l 3.9835,15.0815 a 65.1938,65.1938 0 0 1 33.298,0 z"
+       fill="#e63946"
+       fill-opacity="0.2"
+       stroke="#000000"
+       stroke-width="0.05"
+       id="path5" />
+    <path
+       d="m 152.0363,5.1624 a 80.2925,80.2925 0 0 0 -41.0096,0 l 3.7281,14.1145 a 65.6938,65.6938 0 0 1 33.5534,0 z"
+       fill="none"
+       stroke="#666666"
+       stroke-width="0.05"
+       stroke-dasharray="0.2, 0.2"
+       id="path6" />
+    <text
+       x="131.53148"
+       y="10.880176"
+       font-family="sans-serif"
+       font-size="1px"
+       fill="#000000"
+       text-anchor="middle"
+       id="text6">Level 3 (Red)</text>
+  </g>
+  <g
+     id="Piece_Level4_Panel1"
+     transform="rotate(11.70617,9.4293299,687.98031)">
+    <path
+       d="M 35.8087,24.9234 A 66.1938,66.1938 0 0 0 2,24.9234 l 3.9835,15.0814 a 50.5952,50.5952 0 0 1 25.8417,0 z"
+       fill="#f1faee"
+       fill-opacity="0.2"
+       stroke="#000000"
+       stroke-width="0.05"
+       id="path7" />
+    <path
+       d="m 35.681,25.4068 a 65.6938,65.6938 0 0 0 -33.5533,0 l 3.7281,14.1145 a 51.0952,51.0952 0 0 1 26.0971,0 z"
+       fill="none"
+       stroke="#666666"
+       stroke-width="0.05"
+       stroke-dasharray="0.2, 0.2"
+       id="path8" />
+    <text
+       x="18.904366"
+       y="31.366629"
+       font-family="sans-serif"
+       font-size="1px"
+       fill="#000000"
+       text-anchor="middle"
+       id="text8">Level 4 (White)</text>
+  </g>
+  <g
+     id="Piece_Level5_Panel1"
+     transform="rotate(178.6106,54.474317,40.518628)"
+     inkscape:transform-center-x="2.7268081"
+     inkscape:transform-center-y="0.97669444">
+    <path
+       d="m 64.1612,24.4393 a 51.5952,51.5952 0 0 0 -26.3525,0 l 3.9836,15.0814 a 35.9966,35.9966 0 0 1 18.3853,0 z"
+       fill="#e63946"
+       fill-opacity="0.2"
+       stroke="#000000"
+       stroke-width="0.05"
+       id="path9" />
+    <path
+       d="m 64.0335,24.9227 a 51.0952,51.0952 0 0 0 -26.0971,0 l 3.7282,14.1146 a 36.4966,36.4966 0 0 1 18.6407,0 z"
+       fill="none"
+       stroke="#666666"
+       stroke-width="0.05"
+       stroke-dasharray="0.2, 0.2"
+       id="path10" />
+    <text
+       x="50.984943"
+       y="31.124594"
+       font-family="sans-serif"
+       font-size="1px"
+       fill="#000000"
+       text-anchor="middle"
+       id="text10">Level 5 (Red)</text>
+  </g>
+  <g
+     id="Piece_Level1_Panel2"
+     transform="translate(-64.264595,-2.5316352)">
+    <path
+       d="m 122.3388,26.3756 a 109.9897,109.9897 0 0 0 -56.1776,0 l 3.9835,15.0814 a 94.3911,94.3911 0 0 1 48.2106,0 z"
+       fill="#e63946"
+       fill-opacity="0.2"
+       stroke="#000000"
+       stroke-width="0.05"
+       id="path11" />
+    <path
+       d="m 122.2111,26.859 a 109.4897,109.4897 0 0 0 -55.9223,0 l 3.7282,14.1145 a 94.8911,94.8911 0 0 1 48.466,0 z"
+       fill="none"
+       stroke="#666666"
+       stroke-width="0.05"
+       stroke-dasharray="0.2, 0.2"
+       id="path12" />
+    <text
+       x="94.249977"
+       y="32.092728"
+       font-family="sans-serif"
+       font-size="1px"
+       fill="#000000"
+       text-anchor="middle"
+       id="text12">Level 1 (Red)</text>
+  </g>
+  <g
+     id="Piece_Level2_Panel2"
+     transform="translate(105.3709,-42.648322)">
+    <path
+       d="M 50.7213,46.62 A 95.3911,95.3911 0 0 0 2,46.62 l 3.9835,15.0814 a 79.7925,79.7925 0 0 1 40.7543,0 z"
+       fill="#f1faee"
+       fill-opacity="0.2"
+       stroke="#000000"
+       stroke-width="0.05"
+       id="path13" />
+    <path
+       d="m 50.5936,47.1034 a 94.8911,94.8911 0 0 0 -48.4659,0 L 5.8558,61.218 a 80.2925,80.2925 0 0 1 41.0097,0 z"
+       fill="none"
+       stroke="#666666"
+       stroke-width="0.05"
+       stroke-dasharray="0.2, 0.2"
+       id="path14" />
+    <text
+       x="26.360664"
+       y="52.579182"
+       font-family="sans-serif"
+       font-size="1px"
+       fill="#000000"
+       text-anchor="middle"
+       id="text14">Level 2 (White)</text>
+  </g>
+  <g
+     id="Piece_Level3_Panel2"
+     transform="translate(-50.632712,-3.797453)">
+    <path
+       d="m 93.9864,46.1359 a 80.7925,80.7925 0 0 0 -41.2651,0 l 3.9836,15.0814 a 65.1938,65.1938 0 0 1 33.2979,0 z"
+       fill="#e63946"
+       fill-opacity="0.2"
+       stroke="#000000"
+       stroke-width="0.05"
+       id="path15" />
+    <path
+       d="m 93.8587,46.6193 a 80.2925,80.2925 0 0 0 -41.0097,0 l 3.7282,14.1146 a 65.6938,65.6938 0 0 1 33.5533,0 z"
+       fill="none"
+       stroke="#666666"
+       stroke-width="0.05"
+       stroke-dasharray="0.2, 0.2"
+       id="path16" />
+    <text
+       x="73.353844"
+       y="52.337147"
+       font-family="sans-serif"
+       font-size="1px"
+       fill="#000000"
+       text-anchor="middle"
+       id="text16">Level 3 (Red)</text>
+  </g>
+  <g
+     id="Piece_Level4_Panel2"
+     transform="rotate(-169.57826,117.03612,49.992005)">
+    <path
+       d="m 129.7951,45.6519 a 66.1938,66.1938 0 0 0 -33.8087,0 l 3.9835,15.0814 a 50.5952,50.5952 0 0 1 25.8417,0 z"
+       fill="#f1faee"
+       fill-opacity="0.2"
+       stroke="#000000"
+       stroke-width="0.05"
+       id="path17" />
+    <path
+       d="m 129.6674,46.1353 a 65.6938,65.6938 0 0 0 -33.5534,0 l 3.7282,14.1145 a 51.0952,51.0952 0 0 1 26.0971,0 z"
+       fill="none"
+       stroke="#666666"
+       stroke-width="0.05"
+       stroke-dasharray="0.2, 0.2"
+       id="path18" />
+    <text
+       x="112.89072"
+       y="52.095112"
+       font-family="sans-serif"
+       font-size="1px"
+       fill="#000000"
+       text-anchor="middle"
+       id="text18">Level 4 (White)</text>
+  </g>
+  <g
+     id="Piece_Level5_Panel2"
+     transform="translate(59.590807,-59.396066)">
+    <path
+       d="M 28.3524,65.4122 A 51.5952,51.5952 0 0 0 2,65.4122 l 3.9835,15.0814 a 35.9966,35.9966 0 0 1 18.3854,0 z"
+       fill="#e63946"
+       fill-opacity="0.2"
+       stroke="#000000"
+       stroke-width="0.05"
+       id="path19" />
+    <path
+       d="m 28.2247,65.8956 a 51.0952,51.0952 0 0 0 -26.097,0 l 3.7281,14.1146 a 36.4966,36.4966 0 0 1 18.6408,0 z"
+       fill="none"
+       stroke="#666666"
+       stroke-width="0.05"
+       stroke-dasharray="0.2, 0.2"
+       id="path20" />
+    <text
+       x="15.176214"
+       y="72.097496"
+       font-family="sans-serif"
+       font-size="1px"
+       fill="#000000"
+       text-anchor="middle"
+       id="text20">Level 5 (Red)</text>
+  </g>
+  <rect
+     style="fill:none;stroke:#000000;stroke-width:0.745969"
+     id="rect20"
+     width="101.25403"
+     height="59.254028"
+     x="0.37298441"
+     y="0.37298441" />
+  <rect
+     style="fill:none;stroke:#000000;stroke-width:0.626928"
+     id="rect20-6"
+     width="71.37307"
+     height="59.37307"
+     x="102.18259"
+     y="0.31346399" />
+  <text
+     xml:space="preserve"
+     style="font-size:0.166667px;line-height:1.25;font-family:FreeSans;-inkscape-font-specification:FreeSans;letter-spacing:0px;word-spacing:0px;stroke-width:0.0104167"
+     x="91.138916"
+     y="9.7370634"
+     id="text21"><tspan
+       sodipodi:role="line"
+       id="tspan20"
+       style="stroke-width:0.0104167"
+       x="91.138916"
+       y="9.7370634"></tspan><tspan
+       sodipodi:role="line"
+       style="stroke-width:0.0104167"
+       id="tspan21"
+       x="91.138916"
+       y="9.9453974">60&quot;</tspan></text>
+  <text
+     xml:space="preserve"
+     transform="scale(0.01041667)"
+     id="text22"
+     style="font-family:FreeSans;font-size:16px;line-height:1.25;letter-spacing:0px;word-spacing:0px;-inkscape-font-specification:FreeSans;text-orientation:auto;white-space:pre;shape-inside:url(#rect22)" />
+  <text
+     xml:space="preserve"
+     transform="scale(0.01041667)"
+     id="text23"
+     style="font-family:FreeSans;font-size:16px;line-height:1.25;letter-spacing:0px;word-spacing:0px;-inkscape-font-specification:FreeSans;text-orientation:auto;white-space:pre;shape-inside:url(#rect23)" />
+  <text
+     xml:space="preserve"
+     style="font-size:0.166667px;line-height:1.25;font-family:FreeSans;-inkscape-font-specification:FreeSans;letter-spacing:0px;word-spacing:0px;stroke-width:0.0104167"
+     x="94.254768"
+     y="13.631888"
+     id="text24"><tspan
+       sodipodi:role="line"
+       id="tspan24"
+       style="stroke-width:0.0104167"
+       x="94.254768"
+       y="13.631888">s</tspan></text>
+  <text
+     xml:space="preserve"
+     transform="matrix(0.01041667,0,0,0.01041667,1.7526708,-7.5949068)"
+     id="text25"
+     style="font-size:192px;line-height:1.25;font-family:FreeSans;-inkscape-font-specification:FreeSans;letter-spacing:0px;word-spacing:0px;white-space:pre;shape-inside:url(#rect25)"><tspan
+       x="8487.6016"
+       y="1131.0531"
+       id="tspan2">60&quot; by 102&quot;</tspan></text>
+  <text
+     xml:space="preserve"
+     style="font-size:0.166667px;line-height:1.25;font-family:FreeSans;-inkscape-font-specification:FreeSans;letter-spacing:0px;word-spacing:0px;stroke-width:0.0104167"
+     x="96.202179"
+     y="-19.863607"
+     id="text26"><tspan
+       sodipodi:role="line"
+       id="tspan26"
+       style="stroke-width:0.0104167"
+       x="96.202179"
+       y="-19.863607">sss</tspan></text>
+  <text
+     xml:space="preserve"
+     transform="matrix(0.01041667,0,0,0.01041667,71.751457,-6.0113065)"
+     id="text25-1"
+     style="font-size:192px;line-height:1.25;font-family:FreeSans;-inkscape-font-specification:FreeSans;letter-spacing:0px;word-spacing:0px;white-space:pre;shape-inside:url(#rect25-0);display:inline"><tspan
+       x="8487.6016"
+       y="1131.0531"
+       id="tspan3">60&quot; by 72&quot;</tspan></text>
+</svg>
