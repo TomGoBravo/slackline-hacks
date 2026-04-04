@@ -53,28 +53,28 @@
 
     <div class="panel">
         <h2>Cut single color pieces</h2>
-        <p id="part1desc">Click the button below to download a true-scale (1 unit = 1 inch) vector file containing every single piece required for your windsock. You can open this file in Inkscape or Illustrator to manually nest the pieces onto your fabric width.</p>
+        <p>Click the button below to download a true-scale vector file containing every piece required for your windsock. You can open this file in Inkscape or Illustrator to manually nest the pieces onto your fabric width.</p>
         <button class="export-btn" onclick="downloadSVG()">Download SVG for Inkscape</button>
         <br><br>
-        <p><i>Visual preview of unique piece shapes:</i></p>
+        <p><i>Visual preview of unique piece shapes. Cut lines are solid, finished (stitching) lines are dashed. Side seams are perfectly parallel offsets.</i></p>
         <canvas id="canvasPart1" height="600"></canvas>
     </div>
 
     <div class="panel">
         <h2>Pieces assembled flat</h2>
-        <p>This shows the full grid of pieces joined side-by-side at their seams to form the complete flat pattern. Oriented with the wide top opening at the top of the diagram. The black lines indicate seams.</p>
+        <p>This shows the full grid of pieces joined side-by-side. Oriented with the wide top opening at the top of the diagram. Finished grid lines are dashed, overlapping Cut allowances are solid.</p>
         <canvas id="canvasPart2" height="450"></canvas>
     </div>
 
     <div class="panel" id="panelStripes" style="display:none;">
         <h2>Add stripes</h2>
-        <p>This shows the placement of the outside stripes sewn onto the flat assembly before rolling.</p>
+        <p>This shows the placement of horizontal outside stripes sewn onto the flat assembly.</p>
         <canvas id="canvasStripes" height="450"></canvas>
     </div>
 
     <div class="panel">
         <h2>Final 3D Assembled Windsock</h2>
-        <p>Interactive 3D view showing the assembled grid. Real physical seam lines and applied outside stripes are drawn to scale. Click and drag to rotate, scroll to zoom.</p>
+        <p>Interactive 3D view showing the assembled grid. Physical seam lines and optional outside stripes are drawn to scale. Click and drag to rotate, scroll to zoom.</p>
         <div class="uploader-wrapper">
             <label for="bgUploader"><strong>Upload 3D Background Image:</strong> </label>
             <input type="file" id="bgUploader" accept="image/*">
@@ -152,17 +152,20 @@
         };
     }
 
-    function describeSVGArcSegment(x, y, rOuter, rInner, startAngleRad, endAngleRad) {
-        const startOuter = polarToCartesian(x, y, rOuter, endAngleRad);
-        const endOuter = polarToCartesian(x, y, rOuter, startAngleRad);
-        const startInner = polarToCartesian(x, y, rInner, startAngleRad);
-        const endInner = polarToCartesian(x, y, rInner, endAngleRad);
-        const largeArcFlag = endAngleRad - startAngleRad <= Math.PI ? "0" : "1";
+    function describeSVGArcSegment(x, y, rOuter, rInner, startOuter, endOuter, startInner, endInner) {
+        const startOuterPt = polarToCartesian(x, y, rOuter, endOuter);
+        const endOuterPt = polarToCartesian(x, y, rOuter, startOuter);
+        const startInnerPt = polarToCartesian(x, y, rInner, startInner);
+        const endInnerPt = polarToCartesian(x, y, rInner, endInner);
+        
+        const largeArcFlagOuter = endOuter - startOuter <= Math.PI ? "0" : "1";
+        const largeArcFlagInner = endInner - startInner <= Math.PI ? "0" : "1";
+
         return [
-            "M", startOuter.x.toFixed(4), startOuter.y.toFixed(4),
-            "A", rOuter.toFixed(4), rOuter.toFixed(4), 0, largeArcFlag, 0, endOuter.x.toFixed(4), endOuter.y.toFixed(4),
-            "L", startInner.x.toFixed(4), startInner.y.toFixed(4),
-            "A", rInner.toFixed(4), rInner.toFixed(4), 0, largeArcFlag, 1, endInner.x.toFixed(4), endInner.y.toFixed(4),
+            "M", startOuterPt.x.toFixed(4), startOuterPt.y.toFixed(4),
+            "A", rOuter.toFixed(4), rOuter.toFixed(4), 0, largeArcFlagOuter, 0, endOuterPt.x.toFixed(4), endOuterPt.y.toFixed(4),
+            "L", startInnerPt.x.toFixed(4), startInnerPt.y.toFixed(4),
+            "A", rInner.toFixed(4), rInner.toFixed(4), 0, largeArcFlagInner, 1, endInnerPt.x.toFixed(4), endInnerPt.y.toFixed(4),
             "Z"
         ].join(" ");
     }
@@ -216,29 +219,29 @@
         const pieces = [];
 
         for(let i = 0; i < hBands; i++) {
-            const rOuter = patternRTop - (i * bandSlantWidth);
-            const rInner = patternRTop - ((i+1) * bandSlantWidth);
+            const finishedROuter = patternRTop - (i * bandSlantWidth);
+            const finishedRInner = patternRTop - ((i+1) * bandSlantWidth);
             
-            const cutROuter = rOuter + seam;
-            const cutRInner = rInner - seam;
+            const cutROuter = finishedROuter + seam;
+            const cutRInner = finishedRInner - seam;
             
-            const seamAngle = seam / rInner; 
-            const cutAngleRad = panelAngleRad + (seamAngle * 2);
+            // Parallel offset angles using trigonometry
+            const deltaOut = Math.asin(seam / cutROuter);
+            const deltaIn = Math.asin(seam / cutRInner);
             
-            const topCirc = cutROuter * cutAngleRad;
-            const botCirc = cutRInner * cutAngleRad;
+            const cutWidth = bandSlantWidth + (seam * 2);
             
-            const chord = 2 * cutROuter * Math.sin(cutAngleRad / 2);
-            const height = cutROuter - cutRInner * Math.cos(cutAngleRad / 2);
+            // Calculate bounding box based on maximum expansion (outer radius + outer angle)
+            const maxAngle = panelAngleRad + (deltaOut * 2);
+            const chord = 2 * cutROuter * Math.sin(maxAngle / 2);
+            const height = cutROuter - cutRInner * Math.cos(maxAngle / 2);
             
             pieces.push({
                 rowIndex: i,
-                rOuter: rOuter, rInner: rInner,
-                cutROuter: cutROuter, cutRInner: cutRInner,
-                seamAngle: seamAngle,
-                cutWidth: bandSlantWidth + (seam * 2),
-                topCirc: topCirc, botCirc: botCirc,
-                boxWidth: chord, boxHeight: height
+                finishedROuter, finishedRInner,
+                cutROuter, cutRInner,
+                deltaOut, deltaIn,
+                cutWidth, chord, height
             });
         }
 
@@ -280,23 +283,27 @@
                 const startAng = Math.PI * 1.5 - math.panelAngleRad / 2;
                 const endAng = Math.PI * 1.5 + math.panelAngleRad / 2;
                 
-                const cutStartAng = startAng - piece.seamAngle;
-                const cutEndAng = endAng + piece.seamAngle;
+                const cutStartOuter = startAng - piece.deltaOut;
+                const cutEndOuter = endAng + piece.deltaOut;
+                const cutStartInner = startAng - piece.deltaIn;
+                const cutEndInner = endAng + piece.deltaIn;
 
-                const apexX = currentX + (piece.boxWidth / 2);
+                const apexX = currentX + (piece.chord / 2);
                 const apexY = currentY + piece.cutROuter; 
 
-                const cutPath = describeSVGArcSegment(apexX, apexY, piece.cutROuter, piece.cutRInner, cutStartAng, cutEndAng);
-                const seamPath = describeSVGArcSegment(apexX, apexY, piece.rOuter, piece.rInner, startAng, endAng);
+                const cutPath = describeSVGArcSegment(apexX, apexY, piece.cutROuter, piece.cutRInner, cutStartOuter, cutEndOuter, cutStartInner, cutEndInner);
+                const seamPath = describeSVGArcSegment(apexX, apexY, piece.finishedROuter, piece.finishedRInner, startAng, endAng, startAng, endAng);
 
                 svgContent += `<g id="Piece_Level${i+1}_Panel${p+1}">`;
+                // Solid Cut Path
                 svgContent += `<path d="${cutPath}" fill="${colorHex}" fill-opacity="0.2" stroke="black" stroke-width="0.05" />`;
+                // Dashed Finished/Stitching Path
                 svgContent += `<path d="${seamPath}" fill="none" stroke="#666" stroke-width="0.05" stroke-dasharray="0.2,0.2" />`;
-                svgContent += `<text x="${apexX}" y="${currentY + piece.boxHeight / 2}" font-family="sans-serif" font-size="1" fill="black" text-anchor="middle">Level ${i+1} (${colorName})</text>`;
+                svgContent += `<text x="${apexX}" y="${currentY + piece.height / 2}" font-family="sans-serif" font-size="1" fill="black" text-anchor="middle">Level ${i+1} (${colorName})</text>`;
                 svgContent += `</g>`;
 
-                maxHeightInRow = Math.max(maxHeightInRow, piece.boxHeight);
-                currentX += piece.boxWidth + margin;
+                maxHeightInRow = Math.max(maxHeightInRow, piece.height);
+                currentX += piece.chord + margin;
                 itemIndex++;
 
                 if (itemIndex % itemsPerRow === 0) {
@@ -307,7 +314,7 @@
             }
         }
 
-        const totalWidth = (itemsPerRow * (math.pieces[0].boxWidth + margin)) + margin;
+        const totalWidth = (itemsPerRow * (math.pieces[0].chord + margin)) + margin;
         const totalHeight = currentY + maxHeightInRow + margin;
 
         const fullSVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${totalWidth} ${totalHeight}" width="${totalWidth}in" height="${totalHeight}in">\n` + 
@@ -330,7 +337,7 @@
         c1.width = c1.parentElement.clientWidth;
         ctx1.clearRect(0, 0, c1.width, c1.height);
         
-        const maxChord = 2 * math.pieces[0].cutROuter * Math.sin((math.panelAngleRad + 2 * math.pieces[0].seamAngle) / 2);
+        const maxChord = math.pieces[0].chord;
         const scale = Math.min((c1.width * 0.5) / maxChord, 0.4); 
         
         ctx1.save();
@@ -342,13 +349,16 @@
             const startAng = Math.PI * 1.5 - math.panelAngleRad / 2;
             const endAng = Math.PI * 1.5 + math.panelAngleRad / 2;
             
-            const cutStartAng = startAng - piece.seamAngle;
-            const cutEndAng = endAng + piece.seamAngle;
+            const cutStartOuter = startAng - piece.deltaOut;
+            const cutEndOuter = endAng + piece.deltaOut;
+            const cutStartInner = startAng - piece.deltaIn;
+            const cutEndInner = endAng + piece.deltaIn;
             
+            // Draw Cut Shape (Solid)
             ctx1.save();
             ctx1.beginPath();
-            ctx1.arc(0, apexY, piece.cutROuter * scale, cutStartAng, cutEndAng);
-            ctx1.arc(0, apexY, piece.cutRInner * scale, cutEndAng, cutStartAng, true);
+            ctx1.arc(0, apexY, piece.cutROuter * scale, cutStartOuter, cutEndOuter);
+            ctx1.arc(0, apexY, piece.cutRInner * scale, cutEndInner, cutStartInner, true);
             ctx1.closePath();
             ctx1.fillStyle = getPieceColor(piece.rowIndex, 0, math.dir);
             ctx1.fill();
@@ -356,14 +366,17 @@
             ctx1.lineWidth = 1;
             ctx1.stroke();
 
+            // Draw Finished Shape (Dashed)
             ctx1.beginPath();
-            ctx1.arc(0, apexY, piece.rOuter * scale, startAng, endAng);
-            ctx1.arc(0, apexY, piece.rInner * scale, endAng, startAng, true);
+            ctx1.arc(0, apexY, piece.finishedROuter * scale, startAng, endAng);
+            ctx1.arc(0, apexY, piece.finishedRInner * scale, endAng, startAng, true);
             ctx1.closePath();
+            ctx1.strokeStyle = "#333";
             ctx1.setLineDash([4, 4]);
             ctx1.stroke();
             ctx1.restore();
 
+            // Labels
             ctx1.fillStyle = "#000";
             ctx1.font = "14px sans-serif";
             ctx1.textAlign = "left";
@@ -375,11 +388,14 @@
             ctx1.font = "bold 14px sans-serif";
             ctx1.fillText(`Level ${piece.rowIndex + 1} Shape`, textStartX, textStartY);
             ctx1.font = "14px sans-serif";
-            ctx1.fillText(`Bounding Box W: ${piece.boxWidth.toFixed(2)}"`, textStartX, textStartY + 20);
-            ctx1.fillText(`Bounding Box H: ${piece.boxHeight.toFixed(2)}"`, textStartX, textStartY + 40);
+            ctx1.fillText(`Top Cut Radius: ${piece.cutROuter.toFixed(2)}"`, textStartX, textStartY + 20);
+            ctx1.fillText(`Bot Cut Radius: ${piece.cutRInner.toFixed(2)}"`, textStartX, textStartY + 40);
+            ctx1.fillText(`Cut Width: ${piece.cutWidth.toFixed(2)}"`, textStartX, textStartY + 60);
+            ctx1.fillText(`Bounding Box W: ${piece.chord.toFixed(2)}"`, textStartX, textStartY + 80);
+            ctx1.fillText(`Bounding Box H: ${piece.height.toFixed(2)}"`, textStartX, textStartY + 100);
             
-            const arcHeight = piece.boxHeight * scale;
-            currentY += Math.max(arcHeight, 60) + 40; 
+            const arcHeight = piece.height * scale;
+            currentY += Math.max(arcHeight, 120) + 40; 
         });
         
         if (currentY > c1.height) { c1.height = currentY + 20; updateCalculations(); }
@@ -409,32 +425,37 @@
             const endAng = currentStartAngle + math.panelAngleRad;
 
             for(let i=0; i < math.hBands; i++) {
+                const piece = math.pieces[i];
+                const cutStartOuter = startAng - piece.deltaOut;
+                const cutEndOuter = endAng + piece.deltaOut;
+                const cutStartInner = startAng - piece.deltaIn;
+                const cutEndInner = endAng + piece.deltaIn;
+
+                // Draw Overlapping Cut Allowances (Solid)
                 ctx2.beginPath();
-                ctx2.arc(0, 0, math.pieces[i].rOuter * scale, startAng, endAng);
-                ctx2.arc(0, 0, math.pieces[i].rInner * scale, endAng, startAng, true);
+                ctx2.arc(0, 0, piece.cutROuter * scale, cutStartOuter, cutEndOuter);
+                ctx2.arc(0, 0, piece.cutRInner * scale, cutEndInner, cutStartInner, true);
                 ctx2.closePath();
-                ctx2.fillStyle = getPieceColor(i, p, math.dir);
+                // Adding transparency to fill so overlapping seams are visible
+                ctx2.fillStyle = getPieceColor(i, p, math.dir) + "B3"; 
                 ctx2.fill();
                 ctx2.strokeStyle = "#000000";
-                ctx2.lineWidth = 1.5;
+                ctx2.lineWidth = 1;
                 ctx2.stroke();
+
+                // Draw Finished Grid (Dashed)
+                ctx2.beginPath();
+                ctx2.arc(0, 0, piece.finishedROuter * scale, startAng, endAng);
+                ctx2.arc(0, 0, piece.finishedRInner * scale, endAng, startAng, true);
+                ctx2.closePath();
+                ctx2.strokeStyle = "#333333";
+                ctx2.lineWidth = 1;
+                ctx2.setLineDash([4, 4]);
+                ctx2.stroke();
+                ctx2.setLineDash([]);
             }
             currentStartAngle += math.panelAngleRad;
         }
-
-        const totalStartAng = (Math.PI * 1.5) - (math.totalAngleRad / 2);
-        const totalEndAng = totalStartAng + math.totalAngleRad;
-        const avgSeamAngle = math.seam / math.patternRBot; 
-
-        ctx2.beginPath();
-        ctx2.arc(0, 0, (math.patternRTop + math.seam) * scale, totalStartAng - avgSeamAngle, totalEndAng + avgSeamAngle);
-        ctx2.arc(0, 0, (math.patternRBot - math.seam) * scale, totalEndAng + avgSeamAngle, totalStartAng - avgSeamAngle, true);
-        ctx2.closePath();
-        ctx2.strokeStyle = "#000";
-        ctx2.lineWidth = 1;
-        ctx2.setLineDash([4, 4]);
-        ctx2.stroke();
-        ctx2.setLineDash([]); 
 
         ctx2.restore();
     }
@@ -457,35 +478,34 @@
         
         let currentStartAngle = (Math.PI * 1.5) - (math.totalAngleRad / 2);
 
-        // Draw faint base pattern
+        // Faint base grid
         ctx3.beginPath();
         ctx3.arc(0, 0, R_out * scale, currentStartAngle, currentStartAngle + math.totalAngleRad);
         ctx3.arc(0, 0, R_in * scale, currentStartAngle + math.totalAngleRad, currentStartAngle, true);
         ctx3.closePath();
-        ctx3.fillStyle = "#e0e0e0";
+        ctx3.fillStyle = "#f0f0f0";
         ctx3.fill();
         ctx3.strokeStyle = "#ccc";
         ctx3.stroke();
 
-        // Draw Outside Stripes Overlaid
-        const stripeSpacing = math.totalAngleRad / math.stripeCount;
-        for(let i=0; i < math.stripeCount; i++) {
-            const theta = currentStartAngle + (i * stripeSpacing);
-            ctx3.save();
-            ctx3.rotate(theta);
-            
-            ctx3.fillStyle = "rgba(40, 40, 40, 0.8)";
-            const halfW = (math.stripeWidth / 2) * scale;
+        // Overlay Concentric Horizontal Stripes
+        const stripeSpacing = math.slant / (math.stripeCount + 1);
+        for(let i=1; i <= math.stripeCount; i++) {
+            // Calculate radius on the flat pattern map
+            const stripeCenterRadius = math.patternRTop - (i * stripeSpacing);
+            const sROuter = stripeCenterRadius + (math.stripeWidth / 2);
+            const sRInner = stripeCenterRadius - (math.stripeWidth / 2);
             
             ctx3.beginPath();
-            ctx3.moveTo(R_in * scale, -halfW);
-            ctx3.lineTo(R_out * scale, -halfW);
-            ctx3.lineTo(R_out * scale, halfW);
-            ctx3.lineTo(R_in * scale, halfW);
+            ctx3.arc(0, 0, sROuter * scale, currentStartAngle, currentStartAngle + math.totalAngleRad);
+            ctx3.arc(0, 0, sRInner * scale, currentStartAngle + math.totalAngleRad, currentStartAngle, true);
             ctx3.closePath();
-            ctx3.fill();
             
-            ctx3.restore();
+            ctx3.fillStyle = "#eeeeee"; // White/Silver
+            ctx3.fill();
+            ctx3.strokeStyle = "#888888";
+            ctx3.lineWidth = 1;
+            ctx3.stroke();
         }
 
         ctx3.restore();
@@ -546,26 +566,33 @@
             funnelGroup.add(cyl);
         }
 
-        // 3. Outside Stripes Geometry (Physical width curved against the cone)
+        // 3. Outside Stripes Geometry (Horizontal Rings)
         if (math.stripeCount > 0) {
-            const stripeMat = new THREE.MeshLambertMaterial({ color: 0x222222, side: THREE.DoubleSide });
-            const stripeThetaStep = (2 * Math.PI) / math.stripeCount;
-            const avgRadius = (math.rTop + math.rBot) / 2;
-            // Angular representation of the physical stripe width
-            const stripeAngleWidth = math.stripeWidth / avgRadius; 
+            // Metallic White/Silver material
+            const stripeMat = new THREE.MeshStandardMaterial({ 
+                color: 0xffffff, 
+                roughness: 0.3,
+                metalness: 0.5,
+                side: THREE.DoubleSide 
+            });
+            
+            const hSpacing = math.h / (math.stripeCount + 1);
+            const rSpacing = (math.rTop - math.rBot) / (math.stripeCount + 1);
+            
+            // Slant-adjusted physical height for the cylinder segment
+            const stripeCylHeight = math.stripeWidth * (math.h / math.slant);
 
-            for(let i=0; i < math.stripeCount; i++) {
-                const thetaCenter = i * stripeThetaStep;
-                // Offset slightly outwards to float above the seams
-                const sRTop = math.rTop + 0.15;
-                const sRBot = math.rBot + 0.15;
+            for(let i=1; i <= math.stripeCount; i++) {
+                const ringY = (math.h / 2) - (i * hSpacing);
+                const ringR = math.rTop - (i * rSpacing);
                 
-                const stripeGeo = new THREE.CylinderGeometry(
-                    sRTop, sRBot, math.h, 16, 1, false, 
-                    thetaCenter - (stripeAngleWidth / 2), stripeAngleWidth
-                );
+                // Offset slightly outward to layer on top of fabric/seams
+                const sRTop = (ringR + (rSpacing * (stripeCylHeight/math.h)/2)) + 0.1;
+                const sRBot = (ringR - (rSpacing * (stripeCylHeight/math.h)/2)) + 0.1;
+                
+                const stripeGeo = new THREE.CylinderGeometry(sRTop, sRBot, stripeCylHeight, 64, 1, true);
                 const stripeMesh = new THREE.Mesh(stripeGeo, stripeMat);
-                stripeMesh.position.y = 0;
+                stripeMesh.position.y = ringY;
                 funnelGroup.add(stripeMesh);
             }
         }
