@@ -16,13 +16,14 @@
         .control-group label { display: block; font-weight: bold; margin-bottom: 5px; font-size: 14px; }
         .control-group input, .control-group select { width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
         .results-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; font-family: monospace; font-size: 14px; background: #eee; padding: 15px; border-radius: 4px; margin-top: 15px;}
-        canvas { border: 1px solid #ddd; background: #fff; width: 100%; border-radius: 4px; }
+        canvas { border: 1px solid #ddd; background: #fff; width: 100%; border-radius: 4px; margin-bottom: 10px;}
         #canvas3d { height: 400px; cursor: grab; background: #fff; border: 1px solid #ddd; border-radius: 4px;}
         #canvas3d:active { cursor: grabbing; }
         .uploader-wrapper { margin-bottom: 10px; padding: 10px; background: #f8f9fa; border: 1px solid #ddd; border-radius: 4px;}
         .uploader-wrapper input { font-family: inherit; }
-        .export-btn { background: #2a9d8f; color: white; padding: 12px 20px; border: none; border-radius: 4px; font-size: 16px; font-weight: bold; cursor: pointer; display: inline-block; margin-top: 10px; text-decoration: none;}
+        .export-btn { background: #2a9d8f; color: white; padding: 12px 20px; border: none; border-radius: 4px; font-size: 16px; font-weight: bold; cursor: pointer; display: inline-block; margin-top: 10px; margin-bottom: 15px; text-decoration: none;}
         .export-btn:hover { background: #21867a; }
+        .text-data { background: #eef; padding: 10px; border-radius: 4px; font-family: monospace; font-size: 14px;}
     </style>
 </head>
 <body>
@@ -34,7 +35,8 @@
             <div class="control-group"><label>Top Diameter (in) [Widest]</label><input type="number" id="inTop" value="36" step="1"></div>
             <div class="control-group"><label>Bottom Diameter (in) [Narrowest]</label><input type="number" id="inBot" value="12" step="1"></div>
             <div class="control-group"><label>Height (in)</label><input type="number" id="inH" value="72" step="1"></div>
-            <div class="control-group"><label>Seam Allowance (in)</label><input type="number" id="inSeam" value="0.5" step="0.1"></div>
+            <div class="control-group"><label>Standard Seam Allowance (in)</label><input type="number" id="inSeam" value="0.5" step="0.1"></div>
+            <div class="control-group"><label>Top Seam Allowance (in) [Boning]</label><input type="number" id="inTopSeam" value="1.5" step="0.1"></div>
             <div class="control-group"><label>Number of horizontal bands</label><input type="number" id="inHBands" value="5" min="1" max="24" step="1"></div>
             <div class="control-group"><label>Number of vertical panels</label><input type="number" id="inVPanels" value="2" min="1" max="12" step="1"></div>
             <div class="control-group">
@@ -55,21 +57,21 @@
         <h2>Cut single color pieces</h2>
         <p>Click the button below to download a true-scale vector file containing every piece required for your windsock. You can open this file in Inkscape or Illustrator to manually nest the pieces onto your fabric width.</p>
         <button class="export-btn" onclick="downloadSVG()">Download SVG for Inkscape</button>
-        <br><br>
-        <p><i>Visual preview of unique piece shapes. Cut lines are solid, finished (stitching) lines are dashed. Side seams are perfectly parallel offsets.</i></p>
+        <p><i>Visual preview of unique piece shapes. Cut lines are solid, finished (stitching) lines are dashed.</i></p>
         <canvas id="canvasPart1" height="600"></canvas>
     </div>
 
     <div class="panel">
         <h2>Pieces assembled flat</h2>
-        <p>This shows the full grid of pieces joined side-by-side. Oriented with the wide top opening at the top of the diagram. Finished grid lines are dashed, overlapping Cut allowances are solid.</p>
+        <p>This shows the full grid of pieces joined side-by-side. Oriented with the wide top opening at the top of the diagram. Internal seams are dashed stitching lines. The outer perimeter shows both dashed stitching lines and the solid cut line.</p>
         <canvas id="canvasPart2" height="450"></canvas>
     </div>
 
     <div class="panel" id="panelStripes" style="display:none;">
         <h2>Add stripes</h2>
-        <p>This shows the placement of horizontal outside stripes sewn onto the flat assembly.</p>
+        <p>This shows the placement of horizontal outside stripes sewn onto the flat assembly before rolling.</p>
         <canvas id="canvasStripes" height="450"></canvas>
+        <div class="text-data" id="stripeData"></div>
     </div>
 
     <div class="panel">
@@ -196,6 +198,7 @@
         const dBot = parseFloat(document.getElementById('inBot').value);
         const h = parseFloat(document.getElementById('inH').value);
         const seam = parseFloat(document.getElementById('inSeam').value);
+        const topSeam = parseFloat(document.getElementById('inTopSeam').value);
         const hBands = parseInt(document.getElementById('inHBands').value) || 5;
         const vPanels = parseInt(document.getElementById('inVPanels').value) || 2;
         const dir = document.getElementById('inDir').value;
@@ -222,16 +225,19 @@
             const finishedROuter = patternRTop - (i * bandSlantWidth);
             const finishedRInner = patternRTop - ((i+1) * bandSlantWidth);
             
-            const cutROuter = finishedROuter + seam;
-            const cutRInner = finishedRInner - seam;
+            // Apply special Top Seam Allowance ONLY to the uppermost piece (index 0)
+            const topEdgeSeam = (i === 0) ? topSeam : seam;
+            const botEdgeSeam = seam;
+
+            const cutROuter = finishedROuter + topEdgeSeam;
+            const cutRInner = finishedRInner - botEdgeSeam;
             
-            // Parallel offset angles using trigonometry
+            // Parallel side offset uses standard seam allowance
             const deltaOut = Math.asin(seam / cutROuter);
             const deltaIn = Math.asin(seam / cutRInner);
             
-            const cutWidth = bandSlantWidth + (seam * 2);
+            const cutWidth = bandSlantWidth + topEdgeSeam + botEdgeSeam;
             
-            // Calculate bounding box based on maximum expansion (outer radius + outer angle)
             const maxAngle = panelAngleRad + (deltaOut * 2);
             const chord = 2 * cutROuter * Math.sin(maxAngle / 2);
             const height = cutROuter - cutRInner * Math.cos(maxAngle / 2);
@@ -241,11 +247,12 @@
                 finishedROuter, finishedRInner,
                 cutROuter, cutRInner,
                 deltaOut, deltaIn,
-                cutWidth, chord, height
+                cutWidth, chord, height,
+                topEdgeSeam, botEdgeSeam
             });
         }
 
-        math = { dTop, dBot, h, seam, hBands, vPanels, dir, stripeCount, stripeWidth, rTop, rBot, slant, patternRTop, patternRBot, totalAngleRad, panelAngleRad, pieces };
+        math = { dTop, dBot, h, seam, topSeam, hBands, vPanels, dir, stripeCount, stripeWidth, rTop, rBot, slant, patternRTop, patternRBot, totalAngleRad, panelAngleRad, pieces };
 
         document.getElementById('results').innerHTML = `
             <div>Finished Slant Height: ${slant.toFixed(2)}"</div>
@@ -295,9 +302,7 @@
                 const seamPath = describeSVGArcSegment(apexX, apexY, piece.finishedROuter, piece.finishedRInner, startAng, endAng, startAng, endAng);
 
                 svgContent += `<g id="Piece_Level${i+1}_Panel${p+1}">`;
-                // Solid Cut Path
                 svgContent += `<path d="${cutPath}" fill="${colorHex}" fill-opacity="0.2" stroke="black" stroke-width="0.05" />`;
-                // Dashed Finished/Stitching Path
                 svgContent += `<path d="${seamPath}" fill="none" stroke="#666" stroke-width="0.05" stroke-dasharray="0.2,0.2" />`;
                 svgContent += `<text x="${apexX}" y="${currentY + piece.height / 2}" font-family="sans-serif" font-size="1" fill="black" text-anchor="middle">Level ${i+1} (${colorName})</text>`;
                 svgContent += `</g>`;
@@ -354,7 +359,7 @@
             const cutStartInner = startAng - piece.deltaIn;
             const cutEndInner = endAng + piece.deltaIn;
             
-            // Draw Cut Shape (Solid)
+            // Cut Shape (Solid)
             ctx1.save();
             ctx1.beginPath();
             ctx1.arc(0, apexY, piece.cutROuter * scale, cutStartOuter, cutEndOuter);
@@ -366,7 +371,7 @@
             ctx1.lineWidth = 1;
             ctx1.stroke();
 
-            // Draw Finished Shape (Dashed)
+            // Finished Shape (Dashed)
             ctx1.beginPath();
             ctx1.arc(0, apexY, piece.finishedROuter * scale, startAng, endAng);
             ctx1.arc(0, apexY, piece.finishedRInner * scale, endAng, startAng, true);
@@ -406,7 +411,7 @@
         c2.width = c2.parentElement.clientWidth;
         ctx2.clearRect(0, 0, c2.width, c2.height);
         
-        const R_out = math.patternRTop + math.seam;
+        const R_out = math.patternRTop + math.topSeam;
         const R_in = math.patternRBot - math.seam;
         
         const minY = -R_out; 
@@ -420,34 +425,21 @@
         
         let currentStartAngle = (Math.PI * 1.5) - (math.totalAngleRad / 2);
 
+        // 1. Draw Finished Grid Base (Colors and internal dashed lines)
         for(let p = 0; p < math.vPanels; p++) {
             const startAng = currentStartAngle;
             const endAng = currentStartAngle + math.panelAngleRad;
 
             for(let i=0; i < math.hBands; i++) {
                 const piece = math.pieces[i];
-                const cutStartOuter = startAng - piece.deltaOut;
-                const cutEndOuter = endAng + piece.deltaOut;
-                const cutStartInner = startAng - piece.deltaIn;
-                const cutEndInner = endAng + piece.deltaIn;
-
-                // Draw Overlapping Cut Allowances (Solid)
-                ctx2.beginPath();
-                ctx2.arc(0, 0, piece.cutROuter * scale, cutStartOuter, cutEndOuter);
-                ctx2.arc(0, 0, piece.cutRInner * scale, cutEndInner, cutStartInner, true);
-                ctx2.closePath();
-                // Adding transparency to fill so overlapping seams are visible
-                ctx2.fillStyle = getPieceColor(i, p, math.dir) + "B3"; 
-                ctx2.fill();
-                ctx2.strokeStyle = "#000000";
-                ctx2.lineWidth = 1;
-                ctx2.stroke();
-
-                // Draw Finished Grid (Dashed)
                 ctx2.beginPath();
                 ctx2.arc(0, 0, piece.finishedROuter * scale, startAng, endAng);
                 ctx2.arc(0, 0, piece.finishedRInner * scale, endAng, startAng, true);
                 ctx2.closePath();
+                
+                ctx2.fillStyle = getPieceColor(i, p, math.dir);
+                ctx2.fill();
+                
                 ctx2.strokeStyle = "#333333";
                 ctx2.lineWidth = 1;
                 ctx2.setLineDash([4, 4]);
@@ -457,6 +449,33 @@
             currentStartAngle += math.panelAngleRad;
         }
 
+        // 2. Draw Solid External Cut Line Outline
+        const totalStartAng = (Math.PI * 1.5) - (math.totalAngleRad / 2);
+        const totalEndAng = totalStartAng + math.totalAngleRad;
+        
+        const outerCutR = math.patternRTop + math.topSeam;
+        const innerCutR = math.patternRBot - math.seam;
+        const deltaLeft = Math.asin(math.seam / outerCutR); // Approximating side offset angle for drawing bounds
+        const deltaRight = Math.asin(math.seam / innerCutR);
+
+        ctx2.beginPath();
+        // Top Cut Edge
+        ctx2.arc(0, 0, outerCutR * scale, totalStartAng - deltaLeft, totalEndAng + deltaLeft);
+        // Right Cut Edge (Straight parallel line logic)
+        const trX = outerCutR * scale * Math.cos(totalEndAng + deltaLeft);
+        const trY = outerCutR * scale * Math.sin(totalEndAng + deltaLeft);
+        const brX = innerCutR * scale * Math.cos(totalEndAng + deltaRight);
+        const brY = innerCutR * scale * Math.sin(totalEndAng + deltaRight);
+        ctx2.lineTo(brX, brY);
+        // Bottom Cut Edge
+        ctx2.arc(0, 0, innerCutR * scale, totalEndAng + deltaRight, totalStartAng - deltaRight, true);
+        // Left Cut Edge
+        ctx2.closePath();
+        
+        ctx2.strokeStyle = "#000000";
+        ctx2.lineWidth = 2;
+        ctx2.stroke();
+
         ctx2.restore();
     }
 
@@ -464,13 +483,13 @@
         c3.width = c3.parentElement.clientWidth;
         ctx3.clearRect(0, 0, c3.width, c3.height);
         
-        const R_out = math.patternRTop;
-        const R_in = math.patternRBot;
+        const R_out = math.patternRTop + math.topSeam;
+        const R_in = math.patternRBot - math.seam;
         
-        const minY = -(R_out + math.seam); 
-        const maxY = -(R_in - math.seam) * Math.cos(math.totalAngleRad / 2); 
+        const minY = -R_out; 
+        const maxY = -R_in * Math.cos(math.totalAngleRad / 2); 
         const fanHeight = maxY - minY;
-        const fanWidth = 2 * (R_out + math.seam) * Math.sin(math.totalAngleRad / 2);
+        const fanWidth = 2 * R_out * Math.sin(math.totalAngleRad / 2);
         const scale = Math.min((c3.width - 40) / fanWidth, (c3.height - 40) / fanHeight);
         
         ctx3.save();
@@ -478,35 +497,57 @@
         
         let currentStartAngle = (Math.PI * 1.5) - (math.totalAngleRad / 2);
 
-        // Faint base grid
-        ctx3.beginPath();
-        ctx3.arc(0, 0, R_out * scale, currentStartAngle, currentStartAngle + math.totalAngleRad);
-        ctx3.arc(0, 0, R_in * scale, currentStartAngle + math.totalAngleRad, currentStartAngle, true);
-        ctx3.closePath();
-        ctx3.fillStyle = "#f0f0f0";
-        ctx3.fill();
-        ctx3.strokeStyle = "#ccc";
-        ctx3.stroke();
+        // 1. Re-draw flat assembly map
+        for(let p = 0; p < math.vPanels; p++) {
+            const startAng = currentStartAngle;
+            const endAng = currentStartAngle + math.panelAngleRad;
+            for(let i=0; i < math.hBands; i++) {
+                ctx3.beginPath();
+                ctx3.arc(0, 0, math.pieces[i].finishedROuter * scale, startAng, endAng);
+                ctx3.arc(0, 0, math.pieces[i].finishedRInner * scale, endAng, startAng, true);
+                ctx3.closePath();
+                ctx3.fillStyle = getPieceColor(i, p, math.dir);
+                ctx3.fill();
+                ctx3.strokeStyle = "#444";
+                ctx3.lineWidth = 0.5;
+                ctx3.setLineDash([2, 2]);
+                ctx3.stroke();
+                ctx3.setLineDash([]);
+            }
+            currentStartAngle += math.panelAngleRad;
+        }
 
-        // Overlay Concentric Horizontal Stripes
+        // 2. Overlay Concentric Stripes and Collect Data
         const stripeSpacing = math.slant / (math.stripeCount + 1);
+        let stripeDataHTML = "<strong>Stripe Cut Requirements:</strong><br/>";
+        let totalStripeLength = 0;
+
+        const totalStartAng = (Math.PI * 1.5) - (math.totalAngleRad / 2);
+        
         for(let i=1; i <= math.stripeCount; i++) {
-            // Calculate radius on the flat pattern map
             const stripeCenterRadius = math.patternRTop - (i * stripeSpacing);
             const sROuter = stripeCenterRadius + (math.stripeWidth / 2);
             const sRInner = stripeCenterRadius - (math.stripeWidth / 2);
             
+            // Calculate Top Curve Cut Length
+            const topCurveLen = sROuter * math.totalAngleRad;
+            totalStripeLength += topCurveLen;
+            stripeDataHTML += `Stripe ${i}: Top Curve Length = ${topCurveLen.toFixed(2)}" <br/>`;
+            
             ctx3.beginPath();
-            ctx3.arc(0, 0, sROuter * scale, currentStartAngle, currentStartAngle + math.totalAngleRad);
-            ctx3.arc(0, 0, sRInner * scale, currentStartAngle + math.totalAngleRad, currentStartAngle, true);
+            ctx3.arc(0, 0, sROuter * scale, totalStartAng, totalStartAng + math.totalAngleRad);
+            ctx3.arc(0, 0, sRInner * scale, totalStartAng + math.totalAngleRad, totalStartAng, true);
             ctx3.closePath();
             
-            ctx3.fillStyle = "#eeeeee"; // White/Silver
+            ctx3.fillStyle = "#f8f9fa"; // Mostly White
             ctx3.fill();
-            ctx3.strokeStyle = "#888888";
+            ctx3.strokeStyle = "#888888"; // Metallic Gray outline
             ctx3.lineWidth = 1;
             ctx3.stroke();
         }
+
+        stripeDataHTML += `<br/><strong>Total Stripe Length Needed:</strong> ${totalStripeLength.toFixed(2)}"`;
+        document.getElementById('stripeData').innerHTML = stripeDataHTML;
 
         ctx3.restore();
     }
@@ -566,31 +607,32 @@
             funnelGroup.add(cyl);
         }
 
-        // 3. Outside Stripes Geometry (Horizontal Rings)
+        // 3. True Cone Outside Stripes
         if (math.stripeCount > 0) {
             // Metallic White/Silver material
             const stripeMat = new THREE.MeshStandardMaterial({ 
-                color: 0xffffff, 
-                roughness: 0.3,
-                metalness: 0.5,
+                color: 0xf4f4f4, 
+                roughness: 0.2,
+                metalness: 0.6,
                 side: THREE.DoubleSide 
             });
             
             const hSpacing = math.h / (math.stripeCount + 1);
-            const rSpacing = (math.rTop - math.rBot) / (math.stripeCount + 1);
-            
-            // Slant-adjusted physical height for the cylinder segment
             const stripeCylHeight = math.stripeWidth * (math.h / math.slant);
 
             for(let i=1; i <= math.stripeCount; i++) {
                 const ringY = (math.h / 2) - (i * hSpacing);
-                const ringR = math.rTop - (i * rSpacing);
                 
-                // Offset slightly outward to layer on top of fabric/seams
-                const sRTop = (ringR + (rSpacing * (stripeCylHeight/math.h)/2)) + 0.1;
-                const sRBot = (ringR - (rSpacing * (stripeCylHeight/math.h)/2)) + 0.1;
+                // Calculate precise cone radii at the top and bottom of the stripe width
+                const topY = ringY + (stripeCylHeight / 2);
+                const botY = ringY - (stripeCylHeight / 2);
                 
-                const stripeGeo = new THREE.CylinderGeometry(sRTop, sRBot, stripeCylHeight, 64, 1, true);
+                // Interpolate radius based on height, offset outwards by 0.1 to sit on top of fabric
+                const rTopStripe = math.rTop - ((math.h/2 - topY) / math.h) * (math.rTop - math.rBot) + 0.1;
+                const rBotStripe = math.rTop - ((math.h/2 - botY) / math.h) * (math.rTop - math.rBot) + 0.1;
+                
+                // CylinderGeometry with different top/bottom radii creates a true frustum (cone slice)
+                const stripeGeo = new THREE.CylinderGeometry(rTopStripe, rBotStripe, stripeCylHeight, 64, 1, true);
                 const stripeMesh = new THREE.Mesh(stripeGeo, stripeMat);
                 stripeMesh.position.y = ringY;
                 funnelGroup.add(stripeMesh);
